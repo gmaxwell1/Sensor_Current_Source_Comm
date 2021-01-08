@@ -139,7 +139,7 @@ class inputThread(threading.Thread):
 class timerThread(threading.Thread):
     def __init__(self, threadID, duration):
         """
-        start a new thread with an ID, name and member variable. Serves as a timer.
+        Serves as a timer in the background.
 
         Args:
             threadID (int): An identifier number assigned to the newly created thread.
@@ -160,103 +160,6 @@ class timerThread(threading.Thread):
             sleep(0.096)
 
 
-def sweepCurrents(node: MetrolabTHM1176Node, config_list=None, config='z', datadir='config_tests', start_val=0, end_val=1, steps=5, demagnetize=False, today=True):
-    """
-    sweeps all currents in the (1,1,1) or (1,0,-1) configuration, meaning we have either a z field or an x-y-plane field, measures magnetic field 
-    and stores the measured values in various arrays
-
-    Args:
-        config_list (numpy array of size 3, optional): current configuration entered by user, Defaults to np.array([0,0,1])
-        config (str, optional): Choose from multiple possible 'configurations' (coil1, coil2, coil3) of currents. Possible values:
-            - 'r': randomly generated configuration.
-            - 'z': (1,1,1)
-            - 'y': (0,1,0)
-        Defaults to 'z'.
-        datadir (str): directory to save measurements in
-        start_val (int, optional): start ramp at. Defaults to 0.
-        end_val (int, optional): end ramp at. Defaults to 1.
-        steps (int, optional): number of steps. Defaults to 5.
-        demagnetize (bool, optional): If true, demagnetization protocol will run at the end. default: False
-        today (bool, optional): today's date will be included in the output file name. default: 0
-    """
-    global currDirectParam
-    global desCurrents
-
-    # initialization of all arrays
-    all_curr_steps = np.linspace(start_val, end_val, steps)
-    mean_values = np.zeros((steps, 3))
-    stdd_values = np.zeros((steps, 3))
-    expected_fields = np.zeros((steps, 3))
-    all_curr_vals = np.zeros((steps, 3))
-
-    # some possible configurations
-    current_direction = np.ndarray(3)
-    if config_list is not None:
-        # max_val = np.amax(abs(config_list))
-        current_direction[0] = config_list[0]
-        current_direction[1] = config_list[1]
-        current_direction[2] = config_list[2]
-    elif config == 'z':
-        current_direction[0] = 1
-        current_direction[1] = 1
-        current_direction[2] = 1
-    elif config == 'y':
-        current_direction[0] = -1
-        current_direction[1] = 2
-        current_direction[2] = -1
-    # r for randomized
-    elif config == 'r':
-        arg = np.random.uniform(low=-1.0, high=1.0, size=3)
-        max_val = abs(np.amax(arg))
-        current_direction[0] = arg[0] / max_val
-        current_direction[1] = arg[1] / max_val
-        current_direction[2] = arg[2] / max_val
-    else:
-        print('invalid input!')
-        return
-
-    # create subdirectory to save measurements
-    fileprefix = '({}_{}_{})_field_meas'.format(int(10*current_direction[0]),
-                                                int(10*current_direction[1]), int(10*current_direction[2]))
-    # folder,
-    if today:
-        now = datetime.now().strftime('%y_%m_%d')
-        filePath = f'data_sets\{datadir}_{now}'
-    else:
-        filePath = f'data_sets\{datadir}'
-
-    enableCurrents()
-    # with MetrolabTHM1176Node() as node:
-    # iterate through all possible steps
-    for i in range(steps):
-        # set the current on each channel
-        for k in range(3):
-            desCurrents[k] = current_direction[k]*all_curr_steps[i]
-        all_curr_vals[i] = current_direction*all_curr_steps[i]
-
-        # tentative estimation of resulting B field
-        B_expected = tr.computeMagField(
-            current_direction*all_curr_steps[i], windings)
-
-        setCurrents(desCurrents, currDirectParam)
-        # Let the field stabilize
-        sleep(0.5)
-        # collect measured and expected magnetic field (of the specified sensor in measurements)
-        print('measurement nr. ', i+1)
-        # see measurements.py for more details
-        mean_data, std_data = measure(node, N=7, average=True)
-        mean_values[i] = mean_data
-        stdd_values[i] = std_data
-        expected_fields[i] = B_expected
-
-    if demagnetize:
-        demagnetizeCoils(current_direction)
-    # end of measurements
-    disableCurrents()
-    # saving data section (prepared for plotting)
-    saveDataPoints((all_curr_vals / 1000), mean_values,
-                   stdd_values, expected_fields, filePath, fileprefix)
-    
 
 def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2_length4.csv', datadir='config_tests',
               factor=0, BField=False, demagnetize=False, today=True):
@@ -352,9 +255,9 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     # folder,
     if today:
         now = datetime.now().strftime('%y_%m_%d')
-        filePath = f'data_sets\{datadir}_{now}'
+        filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}_{now}'
     else:
-        filePath = f'data_sets\{datadir}'
+        filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}_{now}'
 
     if demagnetize:
         demagnetizeCoils(all_curr_vals[-1])
@@ -402,7 +305,7 @@ def runCurrents(config_list, t=[], direct=b'1', demagnetize=False):
         c1 = '0'
         while c1 != 'q':
             c1 = input(
-                '[q] to disable currents\n[c]: get currents\n[r]: Set new currents\n[s]: monitor magnetic field)
+                '[q] to disable currents\n[c]: get currents\n[r]: Set new currents\n[s]: monitor magnetic field')
             if c1 == 'c':
                 getCurrents()
             elif c1 == 'r':
@@ -444,21 +347,7 @@ def runCurrents(config_list, t=[], direct=b'1', demagnetize=False):
                 threadLock.acquire()
                 flags.insert(0, 1)
                 threadLock.release()
-
-            # elif c1 == 'f':
-            #     try:
-            #         duration = int(
-            #             input('Duration of measurement (default is 10s): '))
-            #     except:
-            #         duration = 10
-            #     params = {'block_size': 20, 'period': 1e-2,
-            #               'duration': duration, 'averaging': 5}
-
-            #     faden = myMeasThread(1, **params)
-            #     faden.start()
-
-            #     faden.join()
-            #     strm(returnDict, r'.\data_sets\{}'.format(subdir), now=True)
+#############################################################################################################################
     else:
         # initialize temperature sensor and measurement routine and start measuring
         arduino = ArduinoUno('COM7')
@@ -505,8 +394,8 @@ def runCurrents(config_list, t=[], direct=b'1', demagnetize=False):
                              filename_suffix='temp_meas_timed_const_fields')
         
         savedir = input('Name of directory where this measurement will be saved: ')
-        saveLoc = r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{}'.format(savedir)
-        strm(returnDict, r'.\data_sets\{}'.format(subdir), now=True)
+        saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
+        strm(returnDict, saveLoc, now=True)
         
     if demagnetize:
         demagnetizeCoils()
@@ -619,24 +508,24 @@ def generateMagneticField(vectors, t=[], subdir='serious_measurements_for_LUT', 
                 threadLock.acquire()
                 flags.insert(0, 1)
                 threadLock.release()
-
-            # elif c1 == 'f':
-            #     try:
-            #         duration = int(
-            #             input('Duration of measurement (default is 10s): '))
-            #     except:
-            #         duration = 10
-            #     params = {'block_size': 20, 'period': 1e-2,
-            #               'duration': duration, 'averaging': 5}
-
-            #     faden = myMeasThread(1, **params)
-            #     faden.start()
-
-            #     faden.join()
-            #     strm(returnDict, r'.\data_sets\{}'.format(subdir), now=True)
-
 #############################################################################################################################
     else:
+        # initialize temperature sensor and measurement routine and start measuring
+        arduino = ArduinoUno('COM7')
+        measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
+        measure_temp.start()
+        
+        try:
+            duration = int(input('Duration of measurement (default is 10s): '))
+        except:
+            duration = 10
+        # use only with Metrolab sensor
+        global returnDict
+        params = {'name': 'BFieldMeasurement', 'block_size': 30, 'period': 1e-2, 'duration': duration, 'averaging': 5}
+
+        faden = myMeasThread(10, **params)
+        faden.start()
+
         for index, timer in enumerate(t):
             B_Field = vectors[index]
             B_Field_cartesian = tr.computeMagneticFieldVector(B_Field[0], B_Field[1], B_Field[2])
@@ -660,7 +549,17 @@ def generateMagneticField(vectors, t=[], subdir='serious_measurements_for_LUT', 
                     sleep(pause)
                     getCurrents()
                 countdown.join()
-                
+        
+        arduino.stop = True
+        measure_temp.join()
+        arduino.saveTempData(arduino.data_stack,
+                             directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                             filename_suffix='temp_meas_timed_const_fields')
+        
+        savedir = input('Name of directory where this measurement will be saved: ')
+        saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
+        strm(returnDict, saveLoc, now=True)
+        
     if demagnetize:
         demagnetizeCoils()
         

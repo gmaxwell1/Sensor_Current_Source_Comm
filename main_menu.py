@@ -46,7 +46,7 @@ def MainMenu(initialized):
             print('----------- Main Menu -----------')
             print('[x] to exit\n')
             print(
-                '[1]: sweep current values and record measurements with sensor (specify coil configuration)')
+                '[1]: read currents to set from file and record measurements with sensor (specify coil configuration)')
             print('[2]: sweep theoretical magnetic field vectors, measure actual components '
                   '\n\t(specify polar and azimuthal angles, magnitude range or rotational axis)')
             print('[3]: set currents manually on 3 channels (in mA)')
@@ -59,15 +59,10 @@ def MainMenu(initialized):
             c1 = input()
 
             if c1 == '1':
-                inp0 = input(
-                    'Automatic or manual input? (m or f or nothing): ')
-                datadir = input(
-                    'Enter a valid directory name to save measurement data in: ')
                 c1 = input('Automatic exit after finish? (x for yes): ')
-                if datadir == '':
-                    callCurrentSweep(inp0)
-                else:
-                    callCurrentSweep(inp0, datadir)
+                print('initialising gridSweep function...')
+                callGridSweep()
+                
 
             # tentative implementation. Actual I-to-B actuation matrix needed. Many other features not added yet.
             elif c1 == '2':
@@ -104,7 +99,7 @@ def MainMenu(initialized):
         return
 
 
-def callCurrentSweep(mode='m', datadir='test_measurements'):
+def callGridSweep():
     """
     Setup function to call the utility function 'sweepCurrents', see 'utility_functions.py'. Manages necessary inputs.
 
@@ -113,233 +108,46 @@ def callCurrentSweep(mode='m', datadir='test_measurements'):
         using default configurations, such as the x, y or z direction. Defaults to 'm'.
         datadir (str, optional): subdirectory to save measurements in. default: 'test_measurements'
     """
-    if mode == 'f':
-        # must be a .csv file!
-        inpFile = input('Enter a valid configuration file path: ')
-        inp1 = input('starting current in mA = ')
-        # if doing gridSweep: this is the value that will be used
-        inp2 = input('ending current in mA = ')
-        inp3 = input('# of steps: ')
-        # the values for each measurement run should be the same for consistent results
-        try:
-            start_val = int(inp1)
-        except:
-            print('expected numerical value, defaulting to -4500')
-            start_val = -4500
-        try:
-            end_val = int(inp2)
-        except:
-            print('expected numerical value, defaulting to 4500')
-            end_val = 4500
-        try:
-            steps = int(inp3)
-        except:
-            print('expected numerical value, defaulting to 200')
-            steps = 200
+    # must be a .csv file!
+    inpFile = input('Enter a valid configuration file path: ')
+    inp1 = input('starting current in mA = ')
+    # if doing gridSweep: this is the value that will be used
+    inp2 = input('ending current in mA = ')
+    inp3 = input('# of steps: ')
+    # the values for each measurement run should be the same for consistent results
+    try:
+        start_val = int(inp1)
+    except:
+        print('expected numerical value, defaulting to -4500')
+        start_val = -4500
+    try:
+        end_val = int(inp2)
+    except:
+        print('expected numerical value, defaulting to 4500')
+        end_val = 4500
+    try:
+        steps = int(inp3)
+    except:
+        print('expected numerical value, defaulting to 200')
+        steps = 200
 
-        # with MetrolabTHM1176Node(block_size=30, range='0.1 T', period=0.01, average=1) as node:
-        node = MetrolabTHM1176Node(block_size=30, range='0.1 T', period=0.01, average=1)
+    # with MetrolabTHM1176Node(block_size=30, range='0.1 T', period=0.01, average=1) as node:
+    node = MetrolabTHM1176Node(block_size=30, range='0.1 T', period=0.01, average=1)
 
-        gotoPosition()
-        inp = input('Do grid sweep function? (y/n) ')
-        # doing gridSweep
-        if inp == 'y':
-            inp = input('Use current config or B vector file as input? (i/b) ')
-            if inp == 'b':
-                use_B_vectors_as_input = True
-            else:
-                use_B_vectors_as_input = False
-
-            gridSweep(node, inpFile, datadir=datadir, current_val=start_val, BField=use_B_vectors_as_input, demagnetize=True, today=False)
-        else:
-            with open(inpFile, 'r') as f:
-                contents = csv.reader(f)
-                next(contents)
-                for row in contents:
-                    config = np.array(
-                        [float(row[0]), float(row[1]), float(row[2])])
-                        
-                    sweepCurrents(config_list=config, start_val=start_val, datadir=datadir,
-                                    end_val=end_val, steps=steps, node=node, today=True)
-
-    elif mode == 'm':
-        inp1 = input('Configuration:\nChannel 1: ')
-        inp2 = input('Channel 2: ')
-        inp3 = input('Channel 3: ')
-        inp4 = input('starting current in mA = ')
-        inp5 = input('ending current in mA = ')
-        inp6 = input('# of steps: ')
-
-        try:
-            a1 = float(inp1)
-            b1 = float(inp2)
-            c1 = float(inp3)
-            config = np.array([a1, b1, c1])
-        except:
-            print(
-                'expected numbers (float or int), defaulting to (0,0,1)')
-            config = np.array([0, 0, 1])
-        try:
-            start_val = int(inp4)
-        except:
-            print('expected numerical value, defaulting to 0')
-            start_val = 0
-        try:
-            end_val = int(inp5)
-        except:
-            print('expected numerical value, defaulting to 1')
-            end_val = 1
-        try:
-            steps = int(inp6)
-        except:
-            print('expected numerical value, defaulting to 1')
-            steps = 1
-
-        with MetrolabTHM1176Node(block_size=20, range='0.3 T', period=0.01, average=5) as node:
-            gotoPosition()
-
-            sweepCurrents(config_list=config, start_val=start_val, datadir=datadir,
-                          end_val=end_val, steps=steps, node=node, today=False)
-
+    gotoPosition()
+    # doing gridSweep
+    inp = input('Use current config or B vector file as input? (i/b) ')
+    if inp == 'b':
+        use_B_vectors_as_input = True
     else:
-        print('Using preset current configuration.')
-        config = input('Which config (z, xy or r): ')
-        inp1 = input('How many measurement runs?: ')
-        inp2 = input('starting current in mA = ')
-        inp3 = input('ending current in mA = ')
-        inp4 = input('# of steps: ')
+        use_B_vectors_as_input = False
+        
+    inp5 = input('demagnetize afterwards? (y/n) ')
+    inp6 = input('append today`s date to directory name? (y/n) ')
+    datadir = input('Enter a valid directory name to save measurement data in: ')
+    
+    gridSweep(node, inpFile, datadir=datadir, current_val=start_val, BField=use_B_vectors_as_input, demagnetize=(inp5=='y'), today=(inp6=='y'))
 
-        try:
-            randomRuns = int(inp1)
-        except:
-            print('expected numerical value, defaulting to 0')
-            randomRuns = 0
-        try:
-            start_val = int(inp2)
-        except:
-            print('expected numerical value, defaulting to 0')
-            start_val = 0
-        try:
-            end_val = int(inp3)
-        except:
-            print('expected numerical value, defaulting to 1')
-            end_val = 1
-        try:
-            steps = int(inp4)
-        except:
-            print('expected numerical value, defaulting to 1')
-            steps = 1
-
-        while randomRuns > 0:
-            sweepCurrents(config=config, start_val=start_val,
-                          end_val=end_val, steps=steps, datadir=datadir,
-                          node=MetrolabTHM1176Node(block_size=20, range='0.3 T', period=0.01, average=5))
-            randomRuns = randomRuns-1
-
-
-def callHysteresisSweep():
-    """
-    Setup function to call the utility function 'sweepCurrents', see 'utility_functions.py'. Manages necessary inputs.
-
-    Args:
-        mode (str, optional): Decides whether a file with configurations or a manual input will be read. The third option is
-        using default configurations, such as the x, y or z direction. Defaults to 'm'.
-        datadir (str, optional): subdirectory to save measurements in. default: 'test_measurements'
-    """
-    inp1 = input('Configuration:\nChannel 1: ')
-    inp2 = input('Channel 2: ')
-    inp3 = input('Channel 3: ')
-    datadir = input('Which directory should the output file be saved in? ')
-    inp5 = input('maximum current in mA = ')
-    inp6 = input('# of steps: ')
-
-    try:
-        a1 = float(inp1)
-        b1 = float(inp2)
-        c1 = float(inp3)
-        config = np.array([a1, b1, c1])
-    except:
-        print(
-            'expected numbers (float or int), defaulting to (0,0,1)')
-        config = np.array([0, 0, 1])
-    try:
-        end_val = int(inp5)
-    except:
-        print('expected numerical value, defaulting to 1')
-        end_val = 1
-    try:
-        steps = int(inp6)
-    except:
-        print('expected numerical value, defaulting to 1')
-        steps = 1
-
-    if datadir != '':
-        sweepHysteresis(config_list=config, datadir=datadir,
-                        end_val=end_val, steps=steps, today=False)
-    else:
-        sweepHysteresis(config_list=config, end_val=end_val,
-                        steps=steps, today=False)
-
-
-def callSweepVectorField():
-    """
-    Setup function to call the utility function 'rampVectorField', see 'utility_functions.py'. Manages necessary inputs.
-    """
-    inp1 = input('Angle to z axis in deg = ')
-    inp2 = input('Angle to x axis in deg = ')
-    inp3 = input('starting magnitude in mT = ')
-    rot = input(
-        'Rotate constant magnitude field around a specified axis? (otherwise ramp field magnitude in a constant direction): ')
-
-    if rot == 'y':
-        axisang1 = input('Axis polar angle: ')
-        axisang2 = input('Axis azimuthal angle: ')
-        try:
-            axis = (int(axisang1), int(axisang2))
-        except:
-            print('expected numerical value, defaulting to (0,0) or z-axis')
-            axis = (0, 0)
-
-    else:
-        inp4 = input('ending magnitude in mT = ')
-        try:
-            end_mag = int(inp4)
-        except:
-            print('expected numerical value, defaulting to 1')
-            end_mag = 1
-
-    inp5 = input('# of steps: ')
-
-    try:
-        theta = int(inp1)
-    except:
-        print('expected numerical value, defaulting to 0')
-        theta = 0
-    try:
-        phi = int(inp2)
-    except:
-        print('expected numerical value, defaulting to 0')
-        phi = 0
-    try:
-        start_mag = int(inp3)
-    except:
-        print('expected numerical value, defaulting to 0')
-        start_mag = 0
-    try:
-        steps = int(inp5)
-    except:
-        print('expected numerical value, defaulting to 1')
-        steps = 1
-
-    with MetrolabTHM1176Node(block_size=20, range='0.3 T', period=0.01, average=5) as node:
-        # node = MetrolabTHM1176Node(block_size=20, sense_range_upper="0.3 T", period=0.001)
-        gotoPosition()
-
-        if rot == 'y':
-            rampVectorField(node, theta, phi, start_mag,
-                            steps=steps, rotate=axis)
-        else:
-            rampVectorField(node, theta, phi, start_mag, end_mag, steps=steps)
 
 
 def callRunCurrents():

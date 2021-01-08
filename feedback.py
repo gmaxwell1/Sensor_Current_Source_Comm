@@ -20,7 +20,7 @@ import threading
 from main_comm import *
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 import transformations as tr
-import modules.general_functions as gen
+import general_functions as gen
 
 
 class inputThread(threading.Thread):
