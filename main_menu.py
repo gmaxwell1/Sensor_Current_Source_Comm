@@ -113,11 +113,11 @@ def callGridSweep():
     else:
         use_B_vectors_as_input = False
         
-    inp5 = input('demagnetize afterwards? (y/n) ')
+    inp5 = input('demagnetize after each measurement? (y/n) ')
     inp6 = input('append today`s date to directory name? (y/n) ')
     datadir = input('Enter a valid directory name to save measurement data in: ')
     
-    gridSweep(node, inpFile, datadir=datadir, current_val=start_val, BField=use_B_vectors_as_input, demagnetize=(inp5=='y'), today=(inp6=='y'))
+    gridSweep(node, inpFile, datadir=datadir, factor=start_val, BField=use_B_vectors_as_input, demagnetize=(inp5=='y'), today=(inp6=='y'))
 
 
 

@@ -7,6 +7,7 @@ Author: Maxwell Guerne-Kieferndorf (QZabre)
         gmaxwell@student.ethz.ch
 
 Date: 10.11.2020
+latest update: Dec 2020
 """
 
 ########## Standard library imports ##########
@@ -20,7 +21,7 @@ import threading
 from main_comm import *
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 import transformations as tr
-import general_functions as gen
+import other_useful_functions.general_functions as gen
 
 
 class inputThread(threading.Thread):
