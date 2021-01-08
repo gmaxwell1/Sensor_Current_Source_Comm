@@ -9,7 +9,7 @@ Author: Nicholas Meinhardt, Maxwell Guerne-Kieferndorf (QZabre)
         nmeinhar@student.ethz.ch, gmaxwell@student.ethz.ch
 
 Date: 20.10.2020
-latest update: 06.01.2021
+latest update: 08.01.2021
 """
 ########## Standard library imports ##########
 import numpy as np
@@ -24,9 +24,7 @@ import threading
 ########## local imports ##########
 from conexcc.conexcc_class import *
 import transformations as tr
-# from modules.calibrate_cube import get_new_mean_data_set, find_center_axis, angle_calib
-# from modules.plot_hall_cube import plot_many_sets, plot_stage_positions, plot_set, plot_sensor_positions
-from general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
+from other_useful_functions.general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 

@@ -16,6 +16,8 @@ After cloning this repository follow these steps (this is for Windows, but it sh
 1. follow the instructions in `.\pyECB_original\README.md` (within your virtual environment!!)
 2. If using the calibration cube: See the files `serial_reader.py` and `calibrate_cube.py`
 3. If using the Metrolab sensor: Plug in the device and install `libusb-win32` driver using [Zadig](https://zadig.akeo.ie/).
+    Otherwise, comment out all dependencies and function calls having to do with the sensor. Mainly in utility_functions.py
+    and main_menu.py
 
 ## Notes:
 If you are using an IDE, make sure to choose the `python.exe` file in your virtual environment as an interpreter!

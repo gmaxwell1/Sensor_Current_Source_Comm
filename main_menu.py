@@ -12,7 +12,7 @@ Author: Maxwell Guerne-Kieferndorf (QZabre)
         gmaxwell@student.ethz.ch
 
 Date: 09.10.2020
-latest update: 06.01.2021
+latest update: 08.01.2021
 """
 ########## Standard library imports ##########
 import numpy as np
@@ -26,7 +26,7 @@ from scipy import stats
 from utility_functions import *
 from main_comm import *
 from measurements import gotoPosition
-import feedback as fb
+import other_useful_functions.feedback as fb
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 
@@ -45,16 +45,14 @@ def MainMenu(initialized):
         while c1 != 'x':
             print('----------- Main Menu -----------')
             print('[x] to exit\n')
-            print(
-                '[1]: read currents to set from file and record measurements with sensor (specify coil configuration)')
-            print('[2]: sweep theoretical magnetic field vectors, measure actual components '
+            print('[1]: read currents or magnetic field vectors to set from file and record measurements'
+                  '\n\twith sensor ("gridSweep")')
+            print('[2]: generate magnetic field (specify polar and azimuthal angles, magnitude)'
                   '\n\t(specify polar and azimuthal angles, magnitude range or rotational axis)')
-            print('[3]: set currents manually on 3 channels (in mA)')
-            print(
-                '[4]: generate magnetic field (specify polar and azimuthal angles, magnitude)')
+            print('[3]: set currents manually on the 3 channels (in mA)')
 
-            print('[h] do a hysteresis test.\n')
-            print('[t]: measure temperature and field for constant, nonzero currents in first half and zero currents in second half\n')
+            # print('[h] do a hysteresis test.\n')
+            # print('[t]: measure temperature and field for constant, nonzero currents in first half and zero currents in second half\n')
 
             c1 = input()
 
@@ -62,37 +60,26 @@ def MainMenu(initialized):
                 c1 = input('Automatic exit after finish? (x for yes): ')
                 print('initialising gridSweep function...')
                 callGridSweep()
-                
 
-            # tentative implementation. Actual I-to-B actuation matrix needed. Many other features not added yet.
             elif c1 == '2':
                 c1 = input('Automatic exit after finish? (x for yes): ')
-                callSweepVectorField()
+                callGenerateVectorField()
 
             elif c1 == '3':
                 c1 = input('Automatic exit after finish? (x for yes): ')
                 callRunCurrents()
 
-            # tentative implementation. Actual I-to-B actuation matrix needed.
-            elif c1 == '4':
-                c1 = input('Automatic exit after finish? (x for yes): ')
-                callGenerateVectorField()
-
-            # elif c1 == '5':
-            #     c1 = input('Automatic exit after finish? (x for yes): ')
-            #     callFunctionGen()
-
-            # elif c1 == '6':
+            # elif c1 == '4':
             #     c1 = input('Automatic exit after finish? (x for yes): ')
             #     feedbackMode()
 
-            elif c1 == 'h':
-                c1 = input('Automatic exit after finish? (x for yes): ')
-                callHysteresisSweep()
+            # elif c1 == 'h':
+            #     c1 = input('Automatic exit after finish? (x for yes): ')
+            #     callHysteresisSweep()
                 
-            elif c1 == 't':
-                c1 = input('Automatic exit after finish? (x for yes): ')
-                callTempFieldMeasurement()
+            # elif c1 == 't':
+            #     c1 = input('Automatic exit after finish? (x for yes): ')
+            #     callTempFieldMeasurement()
 
     else:
         print('not connected')
@@ -102,34 +89,18 @@ def MainMenu(initialized):
 def callGridSweep():
     """
     Setup function to call the utility function 'sweepCurrents', see 'utility_functions.py'. Manages necessary inputs.
-
-    Args:
-        mode (str, optional): Decides whether a file with configurations or a manual input will be read. The third option is
-        using default configurations, such as the x, y or z direction. Defaults to 'm'.
-        datadir (str, optional): subdirectory to save measurements in. default: 'test_measurements'
     """
     # must be a .csv file!
     inpFile = input('Enter a valid configuration file path: ')
-    inp1 = input('starting current in mA = ')
-    # if doing gridSweep: this is the value that will be used
-    inp2 = input('ending current in mA = ')
-    inp3 = input('# of steps: ')
+    inp1 = input('current factor (if file contains B fields: 1, if currents are in file, choose a current value that brings it to ): ')
+
     # the values for each measurement run should be the same for consistent results
     try:
         start_val = int(inp1)
     except:
         print('expected numerical value, defaulting to -4500')
         start_val = -4500
-    try:
-        end_val = int(inp2)
-    except:
-        print('expected numerical value, defaulting to 4500')
-        end_val = 4500
-    try:
-        steps = int(inp3)
-    except:
-        print('expected numerical value, defaulting to 200')
-        steps = 200
+    
 
     # with MetrolabTHM1176Node(block_size=30, range='0.1 T', period=0.01, average=1) as node:
     node = MetrolabTHM1176Node(block_size=30, range='0.1 T', period=0.01, average=1)
@@ -181,17 +152,11 @@ def callRunCurrents():
             
     inp5 = input('demagnetize afterwards? (y/n) ')
     
+    subdir = 'default_location'
     if inp0 == '':
         subdir = input('Which subdirectory should measurements be saved to? ')
-        # with MetrolabTHM1176Node(block_size=20, range='0.3 T', period=0.01, average=5) as node:
-        #     # node = MetrolabTHM1176Node(block_size=20, sense_range_upper="0.3 T", period=0.001)
-        #     char = input('Calibrate Metrolab sensor? (y/n): ')
-        #     if char == 'y':
-        #         calibration(node, calibrate=True)
 
-        runCurrents(configs, direct=b'1', subdir=subdir, demagnetize=(inp5=='y'))
-
-    runCurrents(configs, timers, direct=b'1', demagnetize=(inp5=='y'))
+    runCurrents(configs, timers, subdir=subdir, demagnetize=(inp5=='y'))
 
 
 def callGenerateVectorField():
@@ -225,7 +190,7 @@ def callGenerateVectorField():
             
     inp5 = input('demagnetize afterwards? (y/n) ')
     
-    subdir = r'data_sets\nothing'
+    subdir = 'default_location'
     if inp0 == '':
         subdir = input('Which subdirectory should measurements be saved to? ')
 

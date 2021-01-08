@@ -10,7 +10,7 @@ Author: Maxwell Guerne-Kieferndorf (QZabre)
         gmaxwell@student.ethz.ch
 
 Date: 15.12.2020
-latest update: 06.01.2021
+latest update: 08.01.2021
 """
 
 ########## Standard library imports ##########
@@ -28,8 +28,8 @@ from main_comm import _setCurrents_
 from measurements import *
 # from modules.analysis_tools import generate_plots
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
-from general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-from arduinoPythonInterface import ArduinoUno, saveTempData
+from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
+from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
 
 ##########  Current parameters ##########
@@ -269,7 +269,7 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
 
 
 
-def runCurrents(config_list, t=[], direct=b'1', demagnetize=False):
+def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False):
     """
     run arbitrary currents (less than maximum current) on each channel
     when running without a timer, the current can be changed in a menu and the magnetic field can
@@ -287,7 +287,7 @@ def runCurrents(config_list, t=[], direct=b'1', demagnetize=False):
     global currDirectParam
     global desCurrents
 
-    currDirectParam = direct
+    currDirectParam = b'1'
     # copy the computed current values (mA) into the desCurrents list (first 3 positions)
     # cast to int
 
@@ -403,7 +403,7 @@ def runCurrents(config_list, t=[], direct=b'1', demagnetize=False):
     disableCurrents()
         
 
-def generateMagneticField(vectors, t=[], subdir='serious_measurements_for_LUT', demagnetize=False):
+def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=False):
     """
     A magnetic field is generated in an arbitrary direction which is specified by the user. The currents
     set on the different channels are computed with a linear model. See transformations.py.

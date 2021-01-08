@@ -2,5 +2,8 @@ pyECB_original/build/
 config_files/
 venvECB_new/
 .vscode/
+fitting_parameters/21_01_07_18-31-26_field_meas.csv - Shortcut.lnk
 
 __pycache__
+
+*.log

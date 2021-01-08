@@ -13,6 +13,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+Mainly adapted from external sources, this file contains a Python class for working with the
+Metrolab THM1176-MF hall magnetometer.
+
+Author: Maxwell Guerne-Kieferndorf
+        gmaxwell (at) ethz.ch
+        
+started mid-October 2020
+latest update: 08.01.2021
+"""
 
 
 import usbtmc
@@ -315,7 +325,7 @@ class MetrolabTHM1176Node(object):
 
 
 if __name__ == '__main__':
-
+    # test out the class
     params = {'block_size': 1, 'period': 0.5,
               'range': '0.3T', 'average': 1, 'unit': 'MT'}
 
@@ -329,72 +339,3 @@ if __name__ == '__main__':
             thread.join()
         print(thm.data_stack)
 
-
-    # sleep(1 - time() % 1)
-    # for i in range(15):
-    #     print(thm.measureFieldmT())
-    #     sleep(1 - time() % 1)
-
-    # # Start the monitoring thread
-    # thread = threading.Thread(target=thm.start_acquisition)
-    # thread.start()
-    # sleep(10)
-    # thm.stop = True
-
-    '''
-    This commented part is the original plotting code. I copied part of it down below.
-    '''
-
-    # plotdata = [thm.data_stack[key] for key in item_name]
-    # timeline = thm.data_stack['Timestamp']
-
-    # t_offset = timeline[0]
-    # for ind in range(len(timeline)):
-    #     timeline[ind] = round(timeline[ind]-t_offset, 3)
-
-    # print(len(plotdata[0]), plotdata[0])
-    # print(len(plotdata[1]), plotdata[1])
-    # print(len(plotdata[2]), plotdata[2])
-    # print(len(timeline), timeline)
-
-    # Plotting stuff
-    # initialize figure
-
-    # fig, ax1 = plt.subplots()
-    # ax2 = ax1.twinx()
-    # plt.draw()
-
-    # # Setup colors
-    # NTemp = curve_type.count('T')
-    # cmap1 = plt.get_cmap('autumn')
-    # colors1 = [cmap1(i) for i in np.linspace(0, 1, NTemp)]
-
-    # NField = curve_type.count('F')
-    # cmap2 = plt.get_cmap('winter')
-    # colors2 = [cmap2(i) for i in np.linspace(0, 1, NField)]
-
-    # colors = []
-    # count1 = 0
-    # count2 = 0
-    # for ct in curve_type:
-    #     if ct == 'T':
-    #         colors.append(colors1[count1])
-    #         count1 += 1
-    #     else:
-    #         colors.append(colors2[count2])
-    #         count2 += 1
-
-    # # Create the matplotlib lines for each curve
-    # lines = []
-    # for k, flag in enumerate(to_show):
-    #     if flag:
-    #         data_to_plot = plotdata[k]
-    #         if curve_type[k] == 'F':
-    #             ln, = ax1.plot(timeline, data_to_plot, label=labels[k], color=colors[k])
-    #         else:
-    #             ln, = ax2.plot(timeline, data_to_plot, label=labels[k], color=colors[k])
-    #         lines.append(ln)
-
-    # ax1.legend(lines, labels, loc='best')
-
-    # plt.show()

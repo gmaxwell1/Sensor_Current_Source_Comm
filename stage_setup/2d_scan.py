@@ -20,14 +20,13 @@ import os
 
 ########## local imports ##########
 try:
-    from modules.conexcc_control import setup, reset_to
+    from conexcc.conexcc_control import setup, reset_to
 except ModuleNotFoundError:
     import sys
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
 finally:
-    from modules.conexcc_control import setup, reset_to
-    from modules.calibrate_cube import grid_2D_cube
-    from modules.calibration import grid_2D
+    from conexcc.conexcc_control import setup, reset_to
+    from calibration import grid_2D
     from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
     from main_comm import *
 
