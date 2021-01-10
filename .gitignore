@@ -1,9 +1,39 @@
-pyECB_original/build/
 config_files/
-venvECB_new/
-.vscode/
 fitting_parameters/21_01_07_18-31-26_field_meas.csv - Shortcut.lnk
 
-__pycache__
+
+venvECB_new/
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+venvECB/
+
+.vscode/
+MANIFEST
+__pycache__/
 
 *.log
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg

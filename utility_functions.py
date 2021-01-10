@@ -189,9 +189,9 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     all_curr_vals = []
     
     # initialize temperature sensor and measurement routine and start measuring
-    arduino = ArduinoUno('COM7')
-    measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
-    measure_temp.start()
+    # arduino = ArduinoUno('COM7')
+    # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
+    # measure_temp.start()
        
     enableCurrents()
     ##########################################################################
@@ -226,7 +226,7 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         # Let the field stabilize
         sleep(0.5)
         
-        time_estimate = time_estimate - i * 22
+        time_estimate = time_estimate - meas_duration
         print(f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
                 f'minutes and {time_estimate%60:.0f} seconds', end='', sep='', flush=False)
         
@@ -244,11 +244,11 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
             expected_fields.append(B_expected)
     ##########################################################################
     # save temperature measurements
-    arduino.stop = True
-    measure_temp.join()
-    saveTempData(arduino.data_stack,
-                 directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_1_Vector_Magnet\2_ECB_Control_Code\ECB_Main_Comm_Measurement\temperature_measurements',
-                 filename_suffix='temp_meas_during_gridsweep')
+    # arduino.stop = True
+    # measure_temp.join()
+    # saveTempData(arduino.data_stack,
+    #              directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_1_Vector_Magnet\2_ECB_Control_Code\ECB_Main_Comm_Measurement\temperature_measurements',
+    #              filename_suffix='temp_meas_during_gridsweep')
     ##########################################################################
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
