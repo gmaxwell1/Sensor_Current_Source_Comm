@@ -17,6 +17,7 @@ import os
 import threading
 import numpy as np
 import pandas as pd
+from other_useful_functions.general_functions import ensure_dir_exists
 
 
 class ArduinoUno(serial.Serial):
@@ -118,6 +119,8 @@ def saveTempData(dataset, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_
     df = None
     if isinstance(dataset, dict):
         df = pd.DataFrame(dataset)
+        
+    ensure_dir_exists(directory)
     
     now = datetime.now().strftime('%y_%m_%d_%H-%M-%S')
     output_file_name = '{}_{}.csv'.format(now, filename_suffix)

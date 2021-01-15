@@ -389,7 +389,7 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False):
                 
         arduino.stop = True
         measure_temp.join()
-        arduino.saveTempData(arduino.data_stack,
+        saveTempData(arduino.data_stack,
                              directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
                              filename_suffix='temp_meas_timed_const_fields')
         
@@ -552,7 +552,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
         
         arduino.stop = True
         measure_temp.join()
-        arduino.saveTempData(arduino.data_stack,
+        saveTempData(arduino.data_stack,
                              directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
                              filename_suffix='temp_meas_timed_const_fields')
         
@@ -568,18 +568,29 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
     
     
 if __name__ == "__main__":
-    params = {'block_size': 40, 'period': 0.01, 'duration': 40, 'averaging': 1}
+    params = {'block_size': 40, 'period': 0.01, 'duration': 9000, 'averaging': 1}
   
-    faden = myMeasThread(1, **params)
-    faden.start()
-
-    openConnection()
-    enableCurrents()
-    sleep(10)
-    demagnetizeCoils()
-    disableCurrents()
-    faden.join()
-
-    closeConnection()
+    arduino = ArduinoUno('COM7')
+    measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     
-    strm(returnDict, r'data_sets\noise_test_THM', 'zero_field_close_withoutECB', now=True)
+    faden = myMeasThread(1, **params)
+
+    faden.start()
+    measure_temp.start()
+
+
+    # openConnection()
+    # enableCurrents()
+    # sleep(10)
+    # demagnetizeCoils()
+    # disableCurrents()
+    faden.join()
+    arduino.stop = True
+    measure_temp.join()
+    saveTempData(arduino.data_stack,
+                            directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                            filename_suffix='temp_meas_timed_const_fields')
+
+    # closeConnection()
+    
+    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\temperature_drift_DC_Source', '3_coils_series_Temp', now=True)
