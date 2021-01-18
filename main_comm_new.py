@@ -1,7 +1,7 @@
 """
 filename: main_comm_new.py
 
-This code is meant to bundle the communication with the ECB-820, by simplifying the most basic necessary functions.
+This code is meant to bundle the communication with the IT6432 current sources.
 There may be some more functions that are necessary in the future
 
 Author: Maxwell Guerne-Kieferndorf (QZabre)
@@ -17,140 +17,9 @@ import sys
 from os import getcwd, path
 from pathlib import Path
 import csv
-import socket
 
-
-
-class IT6432Connection:
-
-    def __init__(self, ip_address, port):
-        self.session = socket.socket()
-        self._channel = 1
-        self._chunk_size = 1024
-        self.host = ip_address
-        self.port = int(port)
-        self.connected = False
-        self.read_termination = '\n'
-
-        self._timeout = 50000
-        self.timeout(self._timeout)
-
-
-    def connect(self, channel: int) -> None:
-        """Connects to the server (IP address and port number)"""
-        try:
-            self.session.connect((self.host, self.port))
-            self.connected = True
-            self._channel = channel
-            # clean slate for beginning
-            self.session.sendall(b'*CLS')
-        except Exception as exc:
-            print(f'A problem occured while trying to connect: {exc}')
-            self.close()
-		
-
-    def timeout(self) -> int:
-        """Read and Write timeout"""
-        return self._timeout
-
-	
-    def timeout(self, timeout: int) -> None:
-        """Read and Write timeout"""
-        self._timeout = timeout
-        tout_float = float(self._timeout / 1000)
-        self.session.settimeout(tout_float)
-
-    def channel(self):
-        """
-        print the channel that this current source is
-        """
-        return self._channel
-
-    def write(self, cmd: str) -> None:
-        """Writes command as string to the instrument"""
-        # add command termination
-        cmd += self.read_termination
-        self.session.sendall(cmd.encode('ascii'))
-  
-  
-    def read(self, chunk_size=None) -> str:
-        """
-        Reads message sent from the instrument from the connection
-
-        Args:
-            chunk_size (int, optional): expected chunk size to be received. Defaults to None.
-
-        Returns:
-            the decoded received message (a string)
-        """
-        term_char_detected = False
-        read_len = 0
-        chunk = bytes()
-        _chunk_size = chunk_size if chunk_size is not None else self._chunk_size
-
-        try:
-            while True:
-                to_read_len = _chunk_size - read_len
-                if to_read_len <= 0:
-                    break
-                data = self.session.recv(to_read_len)
-                chunk += data
-                read_len += len(data)				
-                term_char = self.read_termination.encode()
-                if term_char in data:
-                    term_char_ix = data.index(term_char)
-                    read_len = term_char_ix + 1
-                    term_char_detected = True
-                    break
-                else:
-                    pass
-
-        except socket.timeout:
-            print('timeout occurred!')
-
-        if read_len < _chunk_size:
-            # Less than required data arrived, no more available
-            more_data_available = False
-        else:
-            # MaxCount data arrived, possibly more data available
-            if self.read_termination is not None:
-                more_data_available = not term_char_detected
-            else:
-                more_data_available = True
-
-        res = chunk.decode('ascii').strip('\n')
-        return res
-
-    
-    def formatMsg(self, msg: str) -> str:
-        """
-        Format the message received from the device
-
-        Args:
-            msg (str): the message received
-
-        Returns:
-            str: The formatted message
-        """
-        pass      
-
-
-    def close(self) -> None:
-        """Closes the socket connection"""
-        self.session.close()
-  
-    # context manager
-    def __enter__(self):
-        if not self.session.connected:
-            self.connect()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        if self.session.connected:
-            self.session.close()
-            return not self.session.connected
-        else:
-            return isinstance(value, TypeError)
+# current source
+from IT6432.it6432connection import IT6432Connection
 
 
 ##########  Connection parameters ##########
@@ -159,11 +28,11 @@ IT6432_ADDRESS2 = "192.168.237.48"
 IT6432_ADDRESS3 = "192.168.237.49"
 
 IT6432_PORT1 = "30000"
-IT6432_PORT2 = "7071"
-IT6432_PORT3 = "7072"
+# IT6432_PORT2 = "7071"
+# IT6432_PORT3 = "7072"
 
 
-def openConnection(connection: IT6432Connection, channel: int):
+def openConnection(connection: IT6432Connection):
     """
     Open a connection to a IT6432 current sources.
 
@@ -175,11 +44,10 @@ def openConnection(connection: IT6432Connection, channel: int):
     Returns:
         IT6432Connection: Instances of cconnection objects representing each channel.
     """
-    connection.connect(channel)
+    connection.connect()
     # check device ID
-    connection.write('*IDN?')
-    id_info = connection.read(connection._chunk_size)
-    print(id_info)
+    id_info = connection._query('*IDN?')
+    print(id_info.split(','))
 
 
 def closeConnection(connection: IT6432Connection):
@@ -346,8 +214,8 @@ def demagnetizeCoils(current_config=np.array([1000,1000,1000])):
 
 ########## operate the ECB in the desired mode (test stuff out) ##########
 if __name__ == '__main__':
-    currentSource = IT6432Connection(IT6432_ADDRESS1, IT6432_PORT1)
-    openConnection(currentSource, 1)
+    currentSource = IT6432Connection(IT6432_ADDRESS1, IT6432_PORT1, 1)
+    openConnection(currentSource)
     # voltage/ curretn need A/V appended for the actual value to be set
     # currentSource.write('current 4.5A;:voltage -3V')
     
