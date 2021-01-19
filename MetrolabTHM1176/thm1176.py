@@ -33,6 +33,7 @@ import threading
 import matplotlib.pyplot as plt
 
 
+
 class MetrolabTHM1176Node(object):
     """
     Class representing the metrolab THM1176-MF magnetometer. Can be used to read out data and adapt the sensor's settings.

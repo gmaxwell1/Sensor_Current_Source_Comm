@@ -20,12 +20,12 @@ import sys
 from datetime import datetime
 
 # local imports
-from modules.conexcc_control import all_ready, setup, check_no_motion, get_coords, check_validity
+from conexcc.conexcc_control import all_ready, setup, check_no_motion, get_coords, check_validity
 from conexcc.conexcc_class import *
-from modules.plot_hall_cube import plot_angle, plot_angle_spherical
-from modules.general_functions import save_in_dir, transform_between_sensor_stage_coordinates, ensure_dir_exists
+from other_useful_functions.general_functions import save_in_dir, transform_between_sensor_stage_coordinates, ensure_dir_exists
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
-from modules.MetrolabMeasurements import get_mean_dataset_MetrolabSensor
+# from modules.MetrolabMeasurements import get_mean_dataset_MetrolabSensor
+# remove all references to this!!!
 from measurements import measure
 
 

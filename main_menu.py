@@ -24,66 +24,44 @@ from scipy import stats
 
 ########## local imports ##########
 from utility_functions import *
-from main_comm import *
 from measurements import gotoPosition
 import other_useful_functions.feedback as fb
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 
-def MainMenu(initialized):
+def MainMenu():
     """
-    Main menu for ECB/Vector magnet operation. An arbitrary combination of currents can be set with this menu, thus
+    Main menu for Vector magnet operation. An arbitrary combination of currents can be set with this menu, thus
     any magnetic field may be generated as well.
-
-    Args:
-    - initialized: if the ECB is initialized, this will be 0
     """
 
-    # is there a connection?
-    if initialized == 0:
-        c1 = '0'
-        while c1 != 'x':
-            print('----------- Main Menu -----------')
-            print('[x] to exit\n')
-            print('[1]: read currents or magnetic field vectors to set from file and record measurements'
-                  '\n\twith sensor ("gridSweep")')
-            print('[2]: generate magnetic field (specify polar and azimuthal angles, magnitude)'
-                  '\n\t(specify polar and azimuthal angles, magnitude range or rotational axis)')
-            print('[3]: set currents manually on the 3 channels (in mA)')
+    c1 = '0'
+    while c1 != 'x':
+        print('----------- Main Menu -----------')
+        print('[x] to exit\n')
+        print('[1]: read currents or magnetic field vectors to set from file and record measurements'
+                '\n\twith sensor ("gridSweep")')
+        print('[2]: generate magnetic field (specify polar and azimuthal angles, magnitude)'
+                '\n\t(specify polar and azimuthal angles, magnitude range or rotational axis)')
+        print('[3]: set currents manually on the 3 channels (in mA)')
 
-            # print('[h] do a hysteresis test.\n')
-            # print('[t]: measure temperature and field for constant, nonzero currents in first half and zero currents in second half\n')
+        # print('[h] do a hysteresis test.\n')
+        # print('[t]: measure temperature and field for constant, nonzero currents in first half and zero currents in second half\n')
 
-            c1 = input()
+        c1 = input()
 
-            if c1 == '1':
-                c1 = input('Automatic exit after finish? (x for yes): ')
-                print('initialising gridSweep function...')
-                callGridSweep()
+        if c1 == '1':
+            c1 = input('Automatic exit after finish? (x for yes): ')
+            print('initialising gridSweep function...')
+            callGridSweep()
 
-            elif c1 == '2':
-                c1 = input('Automatic exit after finish? (x for yes): ')
-                callGenerateVectorField()
+        elif c1 == '2':
+            c1 = input('Automatic exit after finish? (x for yes): ')
+            callGenerateVectorField()
 
-            elif c1 == '3':
-                c1 = input('Automatic exit after finish? (x for yes): ')
-                callRunCurrents()
-
-            # elif c1 == '4':
-            #     c1 = input('Automatic exit after finish? (x for yes): ')
-            #     feedbackMode()
-
-            # elif c1 == 'h':
-            #     c1 = input('Automatic exit after finish? (x for yes): ')
-            #     callHysteresisSweep()
-                
-            # elif c1 == 't':
-            #     c1 = input('Automatic exit after finish? (x for yes): ')
-            #     callTempFieldMeasurement()
-
-    else:
-        print('not connected')
-        return
+        elif c1 == '3':
+            c1 = input('Automatic exit after finish? (x for yes): ')
+            callRunCurrents()
 
 
 def callGridSweep():
@@ -150,13 +128,13 @@ def callRunCurrents():
         else:
             char = 'x'
             
-    inp5 = input('demagnetize afterwards? (y/n) ')
+    inp5 = input('measure temperature? (y/n): ')
     
     subdir = 'default_location'
     if inp0 == '':
         subdir = input('Which subdirectory should measurements be saved to? ')
 
-    runCurrents(configs, timers, subdir=subdir, demagnetize=(inp5=='y'))
+    runCurrents(configs, timers, subdir=subdir, demagnetize=False, temp_meas=(inp5=='y'))
 
 
 def callGenerateVectorField():
@@ -257,10 +235,5 @@ def feedbackMode():
     df.to_csv(filepath, index=False, header=True)
 
 
-if __name__ == '__main__':
-    ecbInit = openConnection()
-    while ecbInit != 0:
-        ecbInit = openConnection()
-    
-    MainMenu(ecbInit)
-    closeConnection()
+if __name__ == '__main__':    
+    MainMenu()

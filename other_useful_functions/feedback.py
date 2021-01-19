@@ -18,7 +18,6 @@ from datetime import datetime
 import os
 import threading
 
-from main_comm import *
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 import transformations as tr
 import other_useful_functions.general_functions as gen

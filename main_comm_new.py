@@ -22,83 +22,88 @@ import csv
 from IT6432.it6432connection import IT6432Connection
 
 
-# ##########  Connection parameters ##########
-# IT6432_ADDRESS1 = "192.168.237.47"
-# IT6432_ADDRESS2 = "192.168.237.48"
-# IT6432_ADDRESS3 = "192.168.237.49"
-
-# IT6432_PORT1 = "30000"
-# IT6432_PORT2 = "7071"
-# IT6432_PORT3 = "7072"
+###########  global parameters ##########
 
 
-def openConnection():
+def openConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
     """
     Open a connection to a IT6432 current source.
 
     Returns:
         IT6432Connection: Instances of connection objects representing each channel.
     """
-    return IT6432Connection(1), IT6432Connection(2), IT6432Connection(3)
- 
+    channel_1.connect()
+    channel_1._write('system:remote')
+    
+    if channel_2 is not None:
+        channel_2.connect()
+        channel_2._write('system:remote')
+        
+    if channel_3 is not None:
+        channel_3.connect()
+        channel_3._write('system:remote')
 
 
-def closeConnection(connection: IT6432Connection):
+def closeConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
     """
     Close the connection with the current sources.
     """
-    connection.close()
-
-def enableCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None):
-    """
-    Enable current controllers.
-
-    Returns: error code iff an error occurs, otherwise True (whether ECB currents are enabled)
-    """
-    ans = channel_1._query(':output?')
-    print(ans)
-    if ans == '0':
-        channel_1._write(':output 1;type LOW')
-    else:
-        channel_1._write('output:type LOW')  
-    channel_1._write(':current:limit:state ON;:voltage:limit:state ON')
-    setMaxCurrent(channel_1)
+    channel_1._write('system:local')
+    channel_1.close()
     
     if channel_2 is not None:
-        ans = channel_2._query(':output?')
-        if ans == '0':
-            channel_2._write(':output 1;type LOW')
-        else:
-            channel_2._write('output:type LOW')
-        channel_2._write(':current:limit:state ON;:voltage:limit:state ON')
-        setMaxCurrent(channel_2)
-    
+        channel_2._write('system:local')
+        channel_2.close()
+        
     if channel_3 is not None:
-        ans = channel_3._query(':output?')
-        if ans == '0':
-            channel_3._write(':output 1;type LOW')
-        else:
-            channel_3._write('output:type LOW')
-        channel_3._write(':current:limit:state ON;:voltage:limit:state ON')
-        setMaxCurrent(channel_3)
+        channel_3._write('system:local')
+        channel_3.close()
+
+
+
+# def enableCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None):
+#     """
+#     Enable current controllers.
+#     """
+#     global DO_NOT_ENABLE
+    
+#     idx_1 = channel_1._channel - 1
+#     if not DO_NOT_ENABLE[idx_1]:
+#         channel_1._write('output 1')
+#     c = channel_1.query('output?')
+#     print(f'output {idx_1}: {c}')
+
+    
+#     if channel_2 is not None:
+#         idx_2 = channel_2._channel - 1
+#         if not DO_NOT_ENABLE[idx_2]:
+#             channel_2._write('output 1')
+#         c = channel_2.query('output?')
+#         print(f'output {idx_2}: {c}')
+
+    
+#     if channel_3 is not None:
+#         idx_3 = channel_3._channel - 1
+#         if not DO_NOT_ENABLE[idx_3]:
+#             channel_3._write('output 1')
+#         c = channel_3.query('output?')
+#         print(f'output {idx_3}: {c}')
         
 
 def disableCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None):
     """
     Disable current controllers.
-
-    Returns: error code iff an error occurs, otherwise False (whether ECB currents are enabled)
     """
-    channel_1._write(':output 0')
+    channel_1._write('output 0')
   
     if channel_2 is not None:
-        channel_2._write(':output 0')
+        channel_2._write('output 0')
         
     if channel_3 is not None:
-        channel_3._write(':output 0')
+        channel_3._write('output 0')
         
 
-def setMaxCurrent(connection: IT6432Connection, maxValue=5000):
+def setMaxCurrent(connection: IT6432Connection, maxValue=5000, verbose=False):
     """
     Set maximum current values for each ECB channel, as long as they are under the threshold specified in the API source code.
     Args:
@@ -111,41 +116,77 @@ def setMaxCurrent(connection: IT6432Connection, maxValue=5000):
         print('current cannot be higher than 5A')
     currentLim = maxValue/1000
     voltageLim = maxValue/1000
-    connection._write(':current:limit ' + str(currentLim) + ';:voltage:limit ' + str(voltageLim))
-    # connection._write(':current:protection:state ON;:voltage:protection:state ON')
+    connection._write('current:limit:state ON;:voltage:limit:state ON')
+    connection._write(f'current:limit {currentLim};:voltage:limit {currentLim}')
+
+
+def getMaxMinOutput(connection: IT6432Connection):
+    """
+    Set maximum current values for each ECB channel, as long as they are under the threshold specified in the API source code.
+    Args:
+    -maxValue
+
+    Returns: error code iff an error occurs
+    """
+    max_curr = connection.query('current:maxset?')
+    max_volt = connection.query('voltage:maxset?')
+    min_curr = connection.query('current:minset?')
+    min_volt = connection.query('voltage:minset?')
+    return max_curr, max_volt
     
 
 def setCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None, desCurrents=[0,0,0]):
     """
-    , channel_2: IT6432Connection, channel_3: IT6432Connection
-    Set current values for each ECB channel. Not recommended, instead use setCurrents, since there the maximum step size
-    is reduced to prevent mechanical shifting of the magnet, which could in turn cause a change in the magnetic field.
+    Set current values for each channel. Voltage is limited as well to prevent very fast current changes due to inductance.
 
     Args:
-    -desCurrents: list of length 3 containing int values, where the '0th' value is the desired current on channel 1 (units of mA),
-    the '1st' is the desired current on channel 2 and so on.
-
-    Returns: error code iff an error occurs
+        channel_1 (IT6432Connection): the first passed current source object to modify
+        channel_2 (IT6432Connection, optional): [description]. Defaults to None.
+        channel_3 (IT6432Connection, optional): [description]. Defaults to None.
+        desCurrents (list, optional):  list of length 3 containing int values of currents (unit: mA), Defaults to [0,0,0].
     """
+    signs = np.sign(desCurrents)
     
-    current1 = desCurrents[0] / 1000 if desCurrents[0] <= 5000 else 5.0
+    idx_1 = channel_1._channel - 1
+    current_1 = signs[idx_1] * desCurrents[idx_1] / 1000 if abs(desCurrents[idx_1]) <= 5000 else 5.0
     # to limit the maximum current change (dI/dt) we can set a voltage limit. The voltage due to the coil resistance is 
-    # approximately 0.5*current. The additional 0.5 V ensures that dI/dt <= 25A/s so that nothing is mechanically shifted.
-    v_set1 = 0.5 * current1 + 0.5
-    channel_1._write(':voltage ' + str(v_set1) + 'V;:current ' + str(current1) + 'A')
+    # approximately 0.5*current.
+    v_set_1 = signs[idx_1] * 3
+    # current may not be set to less than 2 mA, in this case we just leave that coil off.
+    if current_1 < 0.002:
+        channel_1._write('output 0')
+    else:
+        channel_1._write('voltage ' + str(v_set_1) + 'V;:current ' + str(current_1) + 'A')
+        channel_1._write('output 1')
+    c = channel_1.query('output?')
+    print(f'output {idx_1 + 1}: {c}')
 
     if channel_2 is not None:
-        current2 = desCurrents[1] / 1000 if desCurrents[1] <= 5000 else 5.0
-        v_set2 = 0.5 * current2 + 0.5
-        channel_2._write(':voltage ' + str(v_set2) + 'V;:current ' + str(current2) + 'A')
+        idx_2 = channel_2._channel - 1
+        current_2 =  signs[idx_2] * desCurrents[idx_2] / 1000 if abs(desCurrents[idx_2]) <= 5000 else 5.0
+        v_set_2 = signs[idx_2] * 3
+        
+        if current_2 < 0.002:
+            channel_2._write('output 0')
+        else:
+            channel_2._write('voltage ' + str(v_set_2) + 'V;:current ' + str(current_2) + 'A')
+            channel_2._write('output 1')
+        c = channel_2.query('output?')
+        print(f'output {idx_2 + 1}: {c}')
 
     if channel_3 is not None:
-        current3 = desCurrents[2] / 1000 if desCurrents[2] <= 5000 else 5.0
-        v_set3 = 0.5 * current3 + 0.5
-        channel_3._write(':voltage ' + str(v_set3) + 'V;:current ' + str(current3) + 'A')
+        idx_3 = channel_3._channel - 1
+        current_3 =  signs[idx_3] * desCurrents[idx_3] / 1000 if abs(desCurrents[idx_3]) <= 5000 else 5.0
+        v_set_3 = signs[idx_3] * 3
 
-    
-   
+        if current_3 < 0.002:
+            channel_3._write('output 0')
+        else:
+            channel_3._write('voltage ' + str(v_set_3) + 'V;:current ' + str(current_3) + 'A')
+            channel_3._write('output 1')
+        c = channel_3.query('output?')
+        print(f'output {idx_3 + 1}: {c}')
+
 
 # def setCurrents(desCurrents=[0, 0, 0, 0, 0, 0, 0, 0], direct=b'0'):
 #     """
@@ -161,14 +202,44 @@ def setCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None, des
 #     """
 #     pass
 
-def getCurrent(connection: IT6432Connection) -> float:
+def getMeasurement(channel_1: IT6432Connection, channel_2=None, channel_3=None, meas_type='', meas_quantity='current'):
     """
-    Get current values from each ECB channel, print them to the console
+    Get DC current/power/voltage values from each channel
 
     Returns: a list of all the currents (or an error code)
     """
-    I1 = connection._query(':measure:current?')
-    return float(I1)
+    basecmd = 'measure:'
+    quantities = ['current', 'voltage', 'power']
+    types = ['', 'acdc', 'max', 'min']
+    if not meas_quantity in quantities:
+        meas_quantity = 'current'
+    if not meas_type in types:
+        meas_type = ''
+    
+    command = basecmd + meas_quantity
+    if meas_type != '':
+        command += ':' + meas_type
+    command += '?'
+        
+    measured_I = []
+    res = channel_1.query(command)
+    if isinstance(res,list):
+        res = res[0]
+    measured_I.append(float(res))
+    
+    if channel_2 is not None:
+        res = channel_2.query(command)
+        if isinstance(res,list):
+            res = res[0]
+        measured_I.append(float(res))
+
+    if channel_3 is not None:
+        res = channel_3.query(command)
+        if isinstance(res,list):
+            res = res[0]
+        measured_I.append(float(res))
+        
+    return measured_I
 
 
 
@@ -183,40 +254,29 @@ def getTemps(verbose=False):
 
 def getStatus(connection: IT6432Connection):
     """
-    gets the current status of the current source by sending a status byte query 
-    and checks for various errors.
+    gets the current status of the current source by sending a query 
+    for the Standard Event Status register and checks.
+    
+    Returns:
+        messages corresponding to any of the bits which were set.
     """
-    connection._write('*STB?')
-    status = connection.read(1)
-    byte = int(status)
-    print(bin(byte))
-
-    # try:
-    #     byte = int(status)
-    # except:
-    #     print('an unkown message format was received')
-        
-    if byte and 0b10000000:  
-        print(f"An operation event has occurred.")
-        connection._write('status:operation?')
-        status = connection.read(1)
-        print(bin(status))
-    if byte and 0b01000000:  
-        print(f"A service request has been made.")
-    if byte and 0b00100000:  
-        print(f"A standard event has occurred.")
-        connection._write('*ESR?')
-        status = connection.read(1)
-        print(bin(status))
-    if byte and 0b00010000:  
-        print(f"There is available data at the output.")
-    if byte and 0b00001000:  
-        print(f"An enabled questionable event has occurred.")
-        connection._write('status:questionable?')
-        status = connection.read(1)
-        print(bin(status))
-        
-    return status
+    status = int(connection.query('*ESR?'))
+    messages = {}
+    
+    if status and 0b10000000:
+        messages[7] = 'Power is On.'
+    if status and 0b00100000:
+        messages[5] = 'Command syntax or semantic error.'
+    if status and 0b00010000:
+        messages[4] = 'Parameter overflows or the condition is not right.'
+    if status and 0b00001000:
+        messages[3] = 'Data stored in register is missing or error occurs in preliminary checkout.'
+    if status and 0b00000100:
+        messages[2] = 'Data of output array is missing.'
+    if status and 0b00000001:
+        messages[0] = 'An operation completed.'
+    
+    return messages
 
 
 def demagnetizeCoils(current_config=np.array([1000,1000,1000])):
@@ -230,26 +290,49 @@ def demagnetizeCoils(current_config=np.array([1000,1000,1000])):
 
 ########## operate the ECB in the desired mode (test stuff out) ##########
 if __name__ == '__main__':
-    # channel_1, channel_2, channel_3 = openConnection()
-    with IT6432Connection(1) as channel_1:
-        with IT6432Connection(2) as channel_2:
-            # print(channel_1._write('SYSTem:local'))
-            # setCurrents(channel_1,channel_2,channel_3, [5000,3141,2222])
-            setCurrents(channel_1, channel_2, desCurrents=[3131,3141,2222])
-            enableCurrents(channel_1, channel_2)
-            # # sleep(10)
-            currentsList = [0,0,0]
-            k = 0
-            while k < 10:
-                sleep(1)
-                currentsList[0] = getCurrent(channel_1)
-                currentsList[1] = getCurrent(channel_2)
-            #     # currentsList[2] = getCurrent(channel_3)
-                
-                print(f'current 1: {currentsList[0]:.3f}, current 2: {currentsList[1]:.3f}')
+    channel_1 = IT6432Connection(1)
+    channel_2 = IT6432Connection(2)
+    channel_3 = IT6432Connection(3)
+    openConnection(channel_1, channel_2, channel_3)
+   
+    # print(channel_1._write('SYSTem:local'))
+    setCurrents(channel_1,channel_2,channel_3, [5000,5000,5000])
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,0,2973])
+    # disableCurrents(channel_1, channel_2, channel_3)
+    # channel_1._write('OUTPut:PROTection:CLEar')
 
-            disableCurrents(channel_1, channel_2)
-            # getStatus(channel_1)
-            closeConnection(channel_1)
-            closeConnection(channel_2)
-            # closeConnection(channel_3)
+    # channel_2._write('current:limit 5;:voltage:limit 5')
+    # channel_2._write('output 1')
+    # channel_3._write('current:limit 5;:voltage:limit 5')
+    # channel_3._write('output 1')
+    
+    # print('output 1: ' + channel_1.query('current:minset?') + 'A, ' + channel_1.query('VOLTage:minset?') + 'V')
+    # print('output 2: ' + channel_2.query('current:minset?') + 'A, ' + channel_2.query('VOLTage:minset?') + 'V')
+    # print('output 3: ' + channel_3.query('current:minset?') + 'A, ' + channel_3.query('VOLTage:minset?') + 'V')
+    
+    # # channel_1._write('system:clear')
+    # print('output 1: ' + channel_1.query('output?'))
+    # print('output 2: ' + channel_2.query('output?'))
+    # print('output 3: ' + channel_3.query('output?'))
+    # stat = getStatus(channel_1)
+    # print(f'status 1: {stat}')
+    # stat = getStatus(channel_2)
+    # print(f'status 2: {stat}')
+    # stat = getStatus(channel_3)
+    # print(f'status 3: {stat}')
+
+    sleep(18000)
+    # currentsList = [0,0,0]
+    # k = 0
+    # while k < 10:
+    #     sleep()
+    #     currentsList = getMeasurement(channel_1, channel_2, channel_3)
+    #     k += 1
+    #     # print(currentsList)
+    #     print(f'current 1: {currentsList[0]:.3f}, current 2: {currentsList[1]:.3f}, current 3: {currentsList[2]:.3f}')
+
+    disableCurrents(channel_1, channel_2, channel_3)
+    # getStatus(channel_1)
+    closeConnection(channel_1)
+    closeConnection(channel_2)
+    closeConnection(channel_3)

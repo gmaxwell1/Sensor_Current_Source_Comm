@@ -304,7 +304,7 @@ if __name__ == '__main__':
     # print('Lookup table:')
     # for key in LookupTable:
     #     print(f'{key} = {LookupTable[key]}')
-    B1 = computeMagneticFieldVector(theta=45, phi=60, magnitude=50)
+    B1 = computeMagneticFieldVector(theta=0, phi=0, magnitude=50)
     print(f'{B1 = }')
     currents = computeCoilCurrents(B1)
     print(f'I1 = {currents[0]}, I2 = {currents[1]}, I3 = {currents[2]}')

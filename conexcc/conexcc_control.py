@@ -21,7 +21,7 @@ import pandas as pd
 
 ########## local imports ##########
 from conexcc.conexcc_class import *
-from modules.general_functions import save_in_dir
+from other_useful_functions.general_functions import save_in_dir
 
 
 def all_ready(CC1: ConexCC, CC2=None, CC3=None, timeout=30, verbose=False):
