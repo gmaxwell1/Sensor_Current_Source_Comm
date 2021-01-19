@@ -23,8 +23,8 @@ import matplotlib.pyplot as plt
 
 ########## local imports ##########
 import transformations as tr
-from main_comm import *
-from main_comm import _setCurrents_
+from main_comm_new import *
+# from main_comm import _setCurrents_
 from measurements import *
 # from modules.analysis_tools import generate_plots
 from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
@@ -33,11 +33,9 @@ from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempDa
 
 
 ##########  Current parameters ##########
-desCurrents = [0, 0, 0, 0, 0, 0, 0, 0]  # in milliamps
-currDirectParam = b'1'
+desCurrents = [0, 0, 0]  # in milliamps
 
 ##########  Vector magnet properties ##########
-
 windings = 508  # windings per coil
 resistance = 0.47  # resistance per coil
 
@@ -568,29 +566,29 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
     
     
 if __name__ == "__main__":
-    params = {'block_size': 40, 'period': 0.01, 'duration': 9000, 'averaging': 1}
+    # params = {'block_size': 40, 'period': 0.01, 'duration': 9000, 'averaging': 1}
   
     arduino = ArduinoUno('COM7')
     measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     
-    faden = myMeasThread(1, **params)
+    # faden = myMeasThread(1, **params)
 
-    faden.start()
+    # faden.start()
     measure_temp.start()
 
 
     # openConnection()
     # enableCurrents()
-    # sleep(10)
+    sleep(5400)
     # demagnetizeCoils()
     # disableCurrents()
-    faden.join()
+    # faden.join()
     arduino.stop = True
     measure_temp.join()
     saveTempData(arduino.data_stack,
                             directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                            filename_suffix='temp_meas_timed_const_fields')
+                            filename_suffix='temp_meas_temp_control')
 
     # closeConnection()
     
-    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\temperature_drift_DC_Source', '3_coils_series_Temp', now=True)
+    # strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\temperature_drift_DC_Source', '3_coils_series_Temp', now=True)

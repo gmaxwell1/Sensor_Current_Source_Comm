@@ -3,38 +3,55 @@ from time import time, sleep
 
 
 class IT6432Connection:
+    ##########  Connection parameters ##########
+    IT6432_ADDRESS1 = "192.168.237.47"
+    IT6432_ADDRESS2 = "192.168.237.48"
+    IT6432_ADDRESS3 = "192.168.237.49"
 
-    def __init__(self, ip_address: str, port: int, channel: int):
+    IT6432_PORT = 30000
+
+    def __init__(self, channel: int):
         self.sock = socket.socket()
         self._channel = channel
-        self.host = ip_address
-        self.port = port
+        self.host = '0.0.0.0'
+        self.port = 0
         
         self.connected = False
+        
         self.read_termination = '\n'
         self._chunk_size = 1024
 
-        self._timeout = 5000
-        self.timeout(self._timeout)
+        self.connect()
+        self.sock.recv(self._chunk_size)
+        
+        self._timeout = 5.0
+        try:
+            self.sock.settimeout(self._timeout)
+        except Exception as exc:
+            print(f'A problem occured while trying to set Timeout: {exc}')
 
 
-    def connect(self, channel: int) -> None:
+
+    def connect(self) -> None:
         """Connects to the server (IP address and port number)"""
         try:
+            if self._channel == 1:
+                self.host = self.IT6432_ADDRESS1
+            elif self._channel == 2:
+                self.host = self.IT6432_ADDRESS2
+            elif self._channel == 3:
+                self.host = self.IT6432_ADDRESS3
+            self.port = self.IT6432_PORT
             self.sock.connect((self.host, self.port))
             self.connected = True
             
+            id_info = self._query('*IDN?')
+            id_info_list = id_info.split(',')
+            for line in id_info_list:
+                print(line)
+            
         except Exception as exc:
-            print(f'A problem occured while trying to connect: {exc}')
-            self.close()
-
-	
-    def timeout(self, timeout: int) -> None:
-        """Write timeout"""
-        self._timeout = timeout
-        tout_float = float(self._timeout / 1000)
-        self.sock.settimeout(tout_float)
-
+            print(f'A problem occured while trying to connect to channel {self._channel}: {exc}')
 
     def channel(self) -> int:
         """
@@ -133,7 +150,7 @@ class IT6432Connection:
         return self
 
     def __exit__(self, type, value, traceback):
-        if self.sock.connected:
+        if self.connected:
             self.sock.close()
             return not self.connected
         else:
