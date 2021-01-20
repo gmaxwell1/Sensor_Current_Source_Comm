@@ -23,9 +23,14 @@ import threading
 
 ########## local imports ##########
 from conexCC.conexcc_class import *
-import core.field_current_tr as tr
-from other_useful_functions.general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
-from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+try:
+    import core.field_current_tr as tr
+except ModuleNotFoundError:
+    sys.path.insert(1, path.join(sys.path[0], '..'))
+    import core.field_current_tr as tr
+finally:
+    from other_useful_functions.general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 
 ########## sensor cube/Conexcc ports ##########

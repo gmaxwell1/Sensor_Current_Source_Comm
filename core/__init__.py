@@ -1,3 +1,1 @@
-"""
-core functions for controlling/testing vector magnet
-"""
+"core utilities for VM control"

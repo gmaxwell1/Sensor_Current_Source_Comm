@@ -18,8 +18,8 @@ from datetime import datetime
 import os
 import threading
 
-from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
-import transformations as tr
+from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+import core.field_current_tr as tr
 import other_useful_functions.general_functions as gen
 
 

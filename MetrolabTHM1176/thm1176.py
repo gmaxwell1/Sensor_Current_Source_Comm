@@ -129,7 +129,7 @@ class MetrolabTHM1176Node(object):
 
         self.sensor.write(":UNIT " + self.unit)
         
-        if self.range != 'auto'
+        if self.range != 'auto':
             self.sensor.write(":SENS " + self.range)
             self.sensor.write(":SENS:AUTO OFF")
         else:

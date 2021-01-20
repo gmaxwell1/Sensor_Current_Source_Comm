@@ -123,9 +123,11 @@ def callRunCurrents():
             print('expected numerical value, defaulting to (0,0,1)')
             configs.append(np.array([0, 0, 1]))
             timers.append(0)
-
+            
+        print(configs)
+        
         if inp0 == 'y':
-            char = input('another config (enter x to end)')
+            char = input('another config (enter x to end) ')
         else:
             char = 'x'
             

@@ -19,7 +19,26 @@ from pathlib import Path
 import csv
 
 # current source
-from IT6432.it6432connection import IT6432Connection
+try:
+    from IT6432.it6432connection import IT6432Connection
+except ModuleNotFoundError:
+    sys.path.insert(1, path.join(sys.path[0], '..'))
+    from IT6432.it6432connection import IT6432Connection
+
+
+# try:
+#     from modules.data_management import ensure_dir_exists
+#     # import transformations as tr
+# except ModuleNotFoundError:
+#     import sys
+#     sys.path.insert(1, os.path.join(sys.path[0], '..'))
+#     # import transformations as tr
+#     from modules.data_management import ensure_dir_exists
+# finally:
+#     from modules.analysis_tools import get_phi, get_theta
+#     from modules.interpolation_tools import delaunay_triangulation_spherical_surface, add_triangles_to_3dplot
+#     from modules.fitting_tools import *
+
 
 
 def openConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
@@ -201,9 +220,9 @@ if __name__ == '__main__':
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
    
-    # print(channel_1._write('OUTPut:speed:time 0.05'))
-    # print(channel_2._write('OUTPut:speed:time 0.05'))
-    # print(channel_3._write('OUTPut:speed:time 0.05'))
+    print(channel_1.query('output:delay?'))
+    print(channel_2.query('output:delay?'))
+    print(channel_3.query('output:delay?'))
     
     # print(channel_1.getMaxMinOutput())
     # print(channel_2.getMaxMinOutput())
@@ -212,16 +231,19 @@ if __name__ == '__main__':
     #setMaxCurrVolt(5.02)
 
     # setCurrents(channel_1,channel_2,channel_3, [5000,5000,5000])
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,0,2973])
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[3000,3000,3000])
     # disableCurrents(channel_1, channel_2, channel_3)
     # channel_1._write('OUTPut:PROTection:CLEar')
+    # channel_2._write('OUTPut:PROTection:CLEar')
+    # channel_3._write('OUTPut:PROTection:CLEar')
+
     # setCurrents(channel_1,channel_2,channel_3, [-1330,2828,-100])
     # channel_2._write('current:limit 5;:voltage:limit 5')
     # channel_2._write('output 1')
     # channel_3._write('current:limit 5;:voltage:limit 5')
     # channel_3._write('output 1')
     
-    # # channel_1._write('system:clear')
+    # print(channel_1.query('system:err?'))
     # print('output 1: ' + channel_1.query('output?'))
     # print('output 2: ' + channel_2.query('output?'))
     # print('output 3: ' + channel_3.query('output?'))
@@ -233,14 +255,14 @@ if __name__ == '__main__':
     print(f'status 3: {stat}')
 
     # sleep(18000)
-    # currentsList = [0,0,0]
-    # k = 0
-    # while k < 10:
-    #     sleep()
-    #     currentsList = getMeasurement(channel_1, channel_2, channel_3)
-    #     k += 1
-    #     # print(currentsList)
-    #     print(f'current 1: {currentsList[0]:.3f}, current 2: {currentsList[1]:.3f}, current 3: {currentsList[2]:.3f}')
+    currentsList = [0,0,0]
+    k = 0
+    while k < 10:
+        sleep(0.1)
+        currentsList = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='voltage')
+        k += 1
+        # print(currentsList)
+        print(f'current 1: {currentsList[0]:.3f}, current 2: {currentsList[1]:.3f}, current 3: {currentsList[2]:.3f}')
 
     disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1)
