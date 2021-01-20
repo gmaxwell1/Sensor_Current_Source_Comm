@@ -21,7 +21,7 @@ Author: Maxwell Guerne-Kieferndorf
         gmaxwell (at) ethz.ch
         
 started mid-October 2020
-latest update: 08.01.2021
+latest update: 20.01.2021
 """
 
 

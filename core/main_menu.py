@@ -24,10 +24,10 @@ from scipy import stats
 
 ########## local imports ##########
 
-from magnet_control_functions import *
-from measurement_functions import gotoPosition
+from core.magnet_control_functions import *
+from core.measurement_functions import gotoPosition
 import other_useful_functions.feedback as fb
-from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
+from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 
 def MainMenu():

@@ -23,9 +23,9 @@ import matplotlib.pyplot as plt
 import sys
 
 ########## local imports ##########
-import field_current_tr as tr
-from main_comm_new import *
-from measurement_functions import *
+import core.field_current_tr as tr
+from core.main_comm_new import *
+from core.measurement_functions import *
 from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
 from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
@@ -177,6 +177,11 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     """
     global desCurrents
     
+    channel_1 = IT6432Connection(1)
+    channel_2 = IT6432Connection(2)
+    channel_3 = IT6432Connection(3)
+    openConnection(channel_1, channel_2, channel_3)
+    
     # initialization of all arrays
     # all_curr_steps = np.linspace(start_val, end_val, steps)
     mean_values = []
@@ -203,7 +208,7 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
 
     for i, row in enumerate(input_list):
         if demagnetize:
-            demagnetizeCoils(current_config = 5000*np.ones(3))
+            demagnetizeCoils(channel_1, channel_2, channel_3, current_config = 5000*np.ones(3))
         
         config = np.array(
                 [float(row[0]), float(row[1]), float(row[2])])
@@ -217,7 +222,7 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
             desCurrents[k] = config[k]*factor
         all_curr_vals.append(config*factor)
         
-        setCurrents(desCurrents, currDirectParam)
+        setCurrents(channel_1, channel_2, channel_3, desCurrents)
         # Let the field stabilize
         sleep(0.5)
         
@@ -253,14 +258,16 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}_{now}'
     else:
         filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}'
-
-    if demagnetize:
-        demagnetizeCoils(all_curr_vals[-1])
-    # end of measurements
-    disableCurrents()
     # saving data section (prepared for plotting)
     saveDataPoints((np.array(all_curr_vals) / 1000), np.array(mean_values),
                    np.array(stdd_values), np.array(expected_fields), filePath, fileprefix)
+    
+    if demagnetize:
+        demagnetizeCoils(channel_1, channel_2, channel_3, all_curr_vals[-1])
+    # end of measurements
+    disableCurrents(channel_1, channel_2, channel_3)
+    closeConnection(channel_1, channel_2, channel_3)
+    
 
 
 

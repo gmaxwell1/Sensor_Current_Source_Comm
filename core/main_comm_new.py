@@ -22,9 +22,6 @@ import csv
 from IT6432.it6432connection import IT6432Connection
 
 
-###########  global parameters ##########
-
-
 def openConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
     """
     Open a connection to a IT6432 current source.
@@ -171,34 +168,33 @@ def demagnetizeCoils(channel_1: IT6432Connection, channel_2=IT6432Connection, ch
     Args:
         - previous_amp (int, optional): the maximum current value (directly) previously applied to coils
     """
-    channel_1._write('INITiate:NAME transient')
-    channel_1._write('INITiate:CONTinuous:NAME transient 1')
-    channel_2._write('INITiate:NAME transient')
-    channel_2._write('INITiate:CONTinuous:NAME transient 1')
-    channel_3._write('INITiate:NAME transient')
-    channel_3._write('INITiate:CONTinuous:NAME transient 1')
+    # channel_1._write('INITiate:NAME transient')
+    # channel_1._write('INITiate:CONTinuous:NAME transient 1')
+    # channel_2._write('INITiate:NAME transient')
+    # channel_2._write('INITiate:CONTinuous:NAME transient 1')
+    # channel_3._write('INITiate:NAME transient')
+    # channel_3._write('INITiate:CONTinuous:NAME transient 1')
     
-    channel_1._write('output 1')
-    channel_2._write('output 1')
-    channel_3._write('output 1')
+    # channel_1._write('output 1')
+    # channel_2._write('output 1')
+    # channel_3._write('output 1')
     
-    tspan = np.linspace(0, 12*np.pi, 50)
-    func1 = current_config[0] * np.cos(tspan) * np.exp(-0.2*tspan)
-    func2 = current_config[1] * np.cos(tspan) * np.exp(-0.2*tspan)
-    func3 = current_config[2] * np.cos(tspan) * np.exp(-0.2*tspan)
+    # tspan = np.linspace(0, 12*np.pi, 50)
+    # func1 = current_config[0] * np.cos(tspan) * np.exp(-0.2*tspan)
+    # func2 = current_config[1] * np.cos(tspan) * np.exp(-0.2*tspan)
+    # func3 = current_config[2] * np.cos(tspan) * np.exp(-0.2*tspan)
 
-    # print(func1)
-    desCurrents = [0, 0, 0, 0, 0, 0, 0, 0]
-    sleep(1 - time() % 1)
-    for k in range(len(tspan)):
-        desCurrents[0] = int(func1[k])
-        desCurrents[1] = int(func2[k])
-        desCurrents[2] = int(func3[k])
+    # # print(func1)
+    # desCurrents = [0, 0, 0, 0, 0, 0, 0, 0]
+    # sleep(1 - time() % 1)
+    # for k in range(len(tspan)):
+    #     desCurrents[0] = int(func1[k])
+    #     desCurrents[1] = int(func2[k])
+    #     desCurrents[2] = int(func3[k])
+    pass
 
 
-
-
-########## operate the ECB in the desired mode (test stuff out) ##########
+########## test stuff out ##########
 if __name__ == '__main__':
     channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)

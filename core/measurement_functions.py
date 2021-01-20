@@ -23,7 +23,7 @@ import threading
 
 ########## local imports ##########
 from conexCC.conexcc_class import *
-import field_current_tr as tr
+import core.field_current_tr as tr
 from other_useful_functions.general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
 from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
@@ -192,7 +192,7 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
         (x, y and z components of B field, times of measurements, temperature values 
         are dimensionless values between 0 and 64k)
     """
-    with MetrolabTHM1176Node(period=period, block_size=block_size, range='0.1 T', average=average, unit='MT') as node:
+    with MetrolabTHM1176Node(period=period, block_size=block_size, range='auto', average=average, unit='MT') as node:
         # gotoPosition(node, meas_height=1.5)
     # node = MetrolabTHM1176Node(period=period, block_size=block_size, range='0.3 T', average=average, unit='MT')
         thread = threading.Thread(target=node.start_acquisition)
