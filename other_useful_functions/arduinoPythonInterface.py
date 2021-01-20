@@ -81,21 +81,22 @@ class ArduinoUno(serial.Serial):
                 rawData3 = self.board.readline()
                 rawData4 = self.board.readline()
             
-                if print_meas:
-                    timeStamp = str(rawData1).strip('b\'\\rn')
-                    temp1 = str(rawData2).strip('b\'\\rn')
-                    temp2 = str(rawData3).strip('b\'\\rn')
-                    temp3 = str(rawData4).strip('b\'\\rn')
-                    try:
-                        times.append(float(timeStamp) / 1000)
-                        temps[0].append(float(temp1) / 128)
-                        temps[1].append(float(temp2) / 128)
-                        temps[2].append(float(temp3) / 128)
+                timeStamp = str(rawData1).strip('b\'\\rn')
+                temp1 = str(rawData2).strip('b\'\\rn')
+                temp2 = str(rawData3).strip('b\'\\rn')
+                temp3 = str(rawData4).strip('b\'\\rn')
+                try:
+                    times.append(float(timeStamp) / 1000)
+                    temps[0].append(float(temp1) / 128)
+                    temps[1].append(float(temp2) / 128)
+                    temps[2].append(float(temp3) / 128)
+                    
+                    if print_meas:
                         # display current temperature measurement, time
                         print(f'\rtime: {float(timeStamp) / 1000:.2f} s, Temperature measured on sensor 1: {float(temp1) / 128:.2f} °C,'
                             f'sensor 2: {float(temp2) / 128:.2f} °C, sensor 3: {float(temp3) / 128:.2f} °C', sep='', end='', flush=True)
-                    except:
-                        print(rawData1, rawData2, rawData3, rawData4)
+                except:
+                    print(rawData1, rawData2, rawData3, rawData4)
             
         
         if self.stop:

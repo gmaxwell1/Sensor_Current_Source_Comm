@@ -1,5 +1,5 @@
 """
-filename: utility_functions.py
+filename: magnet_control_functions.py
 
 This collection of functions has functions that can be used to manipulate the currents on the ECB channels. 
 The user can choose from various methods to set currents on the different channels and thus generate a magnetic 
@@ -10,7 +10,7 @@ Author: Maxwell Guerne-Kieferndorf (QZabre)
         gmaxwell@student.ethz.ch
 
 Date: 15.12.2020
-latest update: 08.01.2021
+latest update: 20.01.2021
 """
 
 ########## Standard library imports ##########
@@ -20,12 +20,13 @@ from time import time, sleep
 from datetime import datetime
 import threading
 import matplotlib.pyplot as plt
+import sys
 
 ########## local imports ##########
-import transformations as tr
+import field_current_tr as tr
 from main_comm_new import *
-from measurements import *
-from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
+from measurement_functions import *
+from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
 from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
@@ -170,11 +171,10 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         inpFile (str): file path to the csv file with a list of current configs/magnetic field vectors to be read in.
         datadir (str): directory where results will be saved.
         factor (int, optional): factor to multiply current configs by. Defaults to 1.
-        BField (bool, optional): if the csv file being read in contains a list of B vectors, this should be true. default: False
+        BField (bool, optional): if the csv file being read in contains a list of B vectors (sphrerical), this should be true. default: False
         demagnetize (bool, optional): If true, demagnetization protocol will run after each vector is tested. default: False
         today (bool, optional): today's date will be included in the output directory name. default: True
     """
-    global currDirectParam
     global desCurrents
     
     # initialization of all arrays
@@ -189,7 +189,6 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     # measure_temp.start()
        
-    enableCurrents()
     ##########################################################################
     input_list = []
     with open(inpFile, 'r') as f:
@@ -350,17 +349,29 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
             measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
             measure_temp.start()
         
+        # use only with Metrolab sensor
         try:
             duration = int(input('Duration of measurement (default is 10s): '))
+            period = int(input('Measurement trigger period (default is 0.5s, 0.01-2.2s): '))
         except:
             duration = 10
-        # use only with Metrolab sensor
-        global returnDict
-        params = {'name': 'BFieldMeasurement', 'block_size': 1, 'period': 0.5, 'duration': duration, 'averaging': 3}
-        faden = myMeasThread(10, **params)
+            period = 0.5
+        
+        if period < 0.1:
+            block_size = 10
+        elif period < 0.05:
+            block_size = 30
+        elif period >= 0.5:
+            block_size = 1
 
+        print(duration, period)
+        global returnDict
+        params = {'name': 'BFieldMeasurement', 'block_size': block_size, 'period': period, 'duration': duration, 'averaging': 3}
+        faden = myMeasThread(10, **params)
+        
         gotoPosition()
         savedir = input('Name of directory where this measurement will be saved: ')
+
         faden.start()
 
         for index, timer in enumerate(t):
@@ -384,6 +395,9 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
                     sleep(pause)
                     getMeasurement(channel_1, channel_2, channel_3)
                 countdown.join()
+
+        faden.join()
+
         if temp_meas:  
             arduino.stop = True
             measure_temp.join()
@@ -511,18 +525,28 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
 #############################################################################################################################
     else:
         # initialize temperature sensor and measurement routine and start measuring
-         if temp_meas:
+        if temp_meas:
             arduino = ArduinoUno('COM7')
             measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
             measure_temp.start()
 
+        # use only with Metrolab sensor
         try:
             duration = int(input('Duration of measurement (default is 10s): '))
+            period = int(input('Measurement trigger period (default is 0.5s, 0.01-2.2s): '))
         except:
             duration = 10
-        # use only with Metrolab sensor
+            period = 0.5
+        
+        if period < 0.1:
+            block_size = 10
+        elif period < 0.05:
+            block_size = 30
+        elif period >= 0.5:
+            block_size = 1
+            
         global returnDict
-        params = {'name': 'BFieldMeasurement', 'block_size': 1, 'period': 0.5, 'duration': duration, 'averaging': 3}
+        params = {'name': 'BFieldMeasurement', 'block_size': block_size, 'period': 0.5, 'duration': duration, 'averaging': 3}
         faden = myMeasThread(10, **params)
         
         gotoPosition()
@@ -553,7 +577,9 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                     sleep(pause)
                     getMeasurement(channel_1, channel_2, channel_3)
                 countdown.join()
-                 
+                
+        faden.join()
+
         if temp_meas:
             arduino.stop = True
             measure_temp.join()
@@ -563,7 +589,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
         
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(returnDict, saveLoc, now=True)
-        
+    
     # if demagnetize:
     #     demagnetizeCoils()
     disableCurrents(channel_1, channel_2, channel_3)
@@ -573,14 +599,14 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
     
 if __name__ == "__main__":
     # params = {'block_size': 40, 'period': 0.01, 'duration': 9000, 'averaging': 1}
-  
+    
     arduino = ArduinoUno('COM7')
     measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     
     # faden = myMeasThread(1, **params)
 
     # faden.start()
-    measure_temp.start()
+    # measure_temp.start()
 
 
     # openConnection()
@@ -589,8 +615,8 @@ if __name__ == "__main__":
     # demagnetizeCoils()
     # disableCurrents()
     # faden.join()
-    arduino.stop = True
-    measure_temp.join()
+    # arduino.stop = True
+    # measure_temp.join()
     saveTempData(arduino.data_stack,
                             directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
                             filename_suffix='temp_meas_temp_control_50mT')

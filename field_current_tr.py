@@ -1,5 +1,5 @@
 """ 
-filename: transfomations.py
+filename: field_current_tr.py
 
 The following helper functions provide the calculation of magnetic fields and associated currents,
 using a cubic model for the relation between the current and magnetic field (and vice versa).

@@ -1,5 +1,5 @@
 """
-filename: measurements.py
+filename: measurement_functions.py
 
 This script is meant to be used to measure magnetic field values with the Hall
 sensor cube/Metrolab THM1176. It is adapted to interface with the ECB, e.g. to set current values and 
@@ -22,10 +22,10 @@ from datetime import datetime
 import threading
 
 ########## local imports ##########
-from conexcc.conexcc_class import *
-import transformations as tr
+from conexCC.conexcc_class import *
+import field_current_tr as tr
 from other_useful_functions.general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
-from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
+from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 
 ########## sensor cube/Conexcc ports ##########
@@ -286,7 +286,7 @@ def saveDataPoints(I, mean_data, std_data, expected_fields, directory='.\\data_s
 
 if __name__ == '__main__':
 
-    gotoPosition()
+    gotoPosition(20,0,20)
   
     # params = {'block_size': 10, 'period': 0.05, 'range': '0.3T',
     #             'average': 1, 'unit': 'MT', 'n_digits': 5}

@@ -20,13 +20,13 @@ import sys
 from datetime import datetime
 
 # local imports
-from conexcc.conexcc_control import all_ready, setup, check_no_motion, get_coords, check_validity
-from conexcc.conexcc_class import *
+from conexCC.conexcc_control import all_ready, setup, check_no_motion, get_coords, check_validity
+from conexCC.conexcc_class import *
 from other_useful_functions.general_functions import save_in_dir, transform_between_sensor_stage_coordinates, ensure_dir_exists
-from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
+from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 # from modules.MetrolabMeasurements import get_mean_dataset_MetrolabSensor
 # remove all references to this!!!
-from measurements import measure
+from measurement_functions import measure
 
 
 # %%

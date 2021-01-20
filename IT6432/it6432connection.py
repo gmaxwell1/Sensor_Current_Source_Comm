@@ -2,6 +2,7 @@ import socket
 from time import time, sleep
 # from qs3.utils import logger
 
+
 class ErrorBase(Exception):
     def __init__(self, code, *args, **kwargs):
         self.code = code
@@ -12,10 +13,14 @@ class ErrorBase(Exception):
 
 
 class GenericError(ErrorBase):
+    """
+    Any errors that have not yet been encountered.
+    """
     def __init__(self, code, msg, *args, **kwargs):
         ErrorBase.__init__(self, code, *args, msg=msg, **kwargs)
         # logger.debug(f'{code}: {msg}')
         print(f'{code}: {msg}')
+
 class ParameterOverflow(ErrorBase): pass
 class InvalidCommand(ErrorBase): pass
 class ExecutionError(ErrorBase): pass
@@ -36,7 +41,7 @@ class IT6432Connection:
     IT6432_ADDRESS1 = "192.168.237.47"
     IT6432_ADDRESS2 = "192.168.237.48"
     IT6432_ADDRESS3 = "192.168.237.49"
-    # default port nr.
+
     IT6432_PORT = 30000
     
     @staticmethod
@@ -77,7 +82,10 @@ class IT6432Connection:
         
         self._timeout = 5.0
     
-
+    #-----------------------------------------------------#
+    #------------------ Basic functions ------------------#
+    #-----------------------------------------------------#
+    
     def connect(self) -> None:
         """
         Connects to the server, i.e. the device
@@ -105,15 +113,15 @@ class IT6432Connection:
 
     def channel(self) -> int:
         """
-        print the channel that this current source is
+        return the channel that this current source is
         """
         return self._channel
 
 
-    def _write(self, cmd: str, checkError=True):
+    def _write(self, cmd: str, check_error=True):
         """
-        Writes command as string to the instrument
-        If there is an error, an empty string is returned.
+        Writes command as string to the instrument.
+        If there is an error, it is saved to the log.
         """
         # add command termination
         cmd += self.read_termination
@@ -123,21 +131,21 @@ class IT6432Connection:
             # logger.debug(f'{__name__} error when sending the "{cmd}" command')
             print(f'{__name__} error when sending the "{cmd}" command')
         
-        if checkError:
+        if check_error:
             self.checkError()
   
   
-    def _read(self, chunk_size=None) -> str:
+    def _read(self, chunk_size=None, check_error=True) -> str:
         """
-        Reads message sent from the instrument from the connection. One chunk (1024 bytes) at
+        Reads message sent from the instrument on the connection. One chunk (1024 bytes) at
         a time.
 
         Args:
             chunk_size (int, optional): expected chunk size to be received. Defaults to None.
+            check_error (bool, optional): Whether to actively check for system errors. Defaults to True.
 
         Returns:
-            str: the decoded received message
-            bool: whether there is more data to be read
+            str: the decoded (from ascii) received message
         """
         term_char_detected = False
         read_len = 0
@@ -172,11 +180,14 @@ class IT6432Connection:
             res = chunk.decode('uft8').strip('\n')
             # logger.debug(f'{__name__} Non-ascii string received: {res}')
             print(f'{__name__} Non-ascii string received: {res}')
+        
+        if check_error:
+            self.checkError()
             
         return res
 
     
-    def query(self, cmd: str, checkError=True) -> str:
+    def query(self, cmd: str, check_error=True) -> str:
         """
         query the current source with any command
 
@@ -188,30 +199,47 @@ class IT6432Connection:
         """
         # more = False
         result = None
-        self._write(cmd, checkError=False)
+        self._write(cmd, check_error=False)
         sleep(0.1)
-        result = self._read()
-        if checkError:
+        result = self._read(check_error=False)
+        if check_error:
             self.checkError()
             
         return result
 
 
     def checkError(self):
-        error_code, error_message = self.query('system:error?', checkError=False).split(',')
+        error_code, error_message = self.query('system:error?', check_error=False).split(',')
         if int(error_code) != 0:
-            try:
-                raise self._ErrorFactory(int(error_code), error_message)
-            except KeyError as e:
-                raise RuntimeError(f'Unknown error code: {error_code}') from e
+            # logger.debug(f'{__name__}; error code: {error_code}')
+            raise self._ErrorFactory(int(error_code), error_message)
 
+        
+    def clrOutputProt(self):
+        """
+        If output protection was triggered for some reason, clear it.
+        """
+        self._write('output:protection:clear')
+        
+    def clrErrorQueue(self):
+        """
+        Clear all errors from the instrument error queue
+        """
+        self._write('system:clear')
+        
+    def saveSetup(self, n):
+        self._write(f'*SAV {n}')
+        
+    def recallSetup(self, n):
+        self._write(f'*RCL {n}')
 
     def close(self) -> None:
         """
         Closes the socket connection
         """
         self.sock.close()
-  
+        
+     
     # context manager
     def __enter__(self):
         if not self.connected:
@@ -224,3 +252,149 @@ class IT6432Connection:
             return not self.connected
         else:
             return isinstance(value, TypeError)
+
+    #-------------------------------------------------------#
+    #------------------ Utility functions ------------------#
+    #-------------------------------------------------------#
+    
+    def getMaxMinOutput(self):
+        """
+        Get maximum/minimum current/voltage values for each current channel.
+        
+        Returns: 
+            floats (tuple): maximum/minimum current, maximum/minimum voltage
+        """
+        max_curr = self.query('current:maxset?')
+        max_volt = self.query('voltage:maxset?')
+        min_curr = self.query('current:minset?')
+        min_volt = self.query('voltage:minset?')
+        
+        return float(max_curr), float(min_curr), float(max_volt), float(min_volt)
+
+        
+    def getStatus(self):
+        """
+        gets the current status of the current source by sending a query 
+        for the different status registers. For low-level debugging.
+        
+        Returns:
+            dict: messages corresponding to any of the bits which were set.
+        """
+        messages = {}
+        
+        status = int(self.query('*STB?'))
+        # status byte
+        if status and 0b10000000:
+            messages['STB7'] = 'An operation event has occurred.'
+        if status and 0b01000000:
+            messages['STB6'] = 'Master status/Request service.'
+        if status and 0b00100000:
+            messages['STB5'] = 'An enabled standard event has occurred.'
+        if status and 0b00010000:
+            messages['STB4'] = 'The output queue contains data.'
+        if status and 0b00001000:
+            messages['STB3'] = 'An enabled questionable event has occurred.'
+        
+        status = int(self.query('*ESR?'))
+        # standard event status
+        if status and 0b10000000:
+            messages['ESR7'] = 'Power supply was reset.'
+        if status and 0b00100000:
+            messages['ESR5'] = 'Command syntax or semantic error.'
+        if status and 0b00010000:
+            messages['ESR4'] = 'Parameter overflows or the condition is not right.'
+        if status and 0b00001000:
+            messages['ESR3'] = 'Device dependent error.'
+        if status and 0b00000100:
+            messages['ESR2'] = 'Data of output array is missing.'
+        if status and 0b00000001:
+            messages['ESR0'] = 'An operation completed.'
+            
+        status = int(self.query('status:questionable?'))
+        # questionable event status 
+        if status and 0b01000000:
+            messages['QER6'] = 'Overload current is set.'
+        if status and 0b00100000:
+            messages['QER5'] = 'Output disabled.'
+        if status and 0b00010000:
+            messages['QER4'] = 'Abnormal voltage output.'
+        if status and 0b00001000:
+            messages['QER3'] = 'Over temperature tripped.'
+        if status and 0b00000100:
+            messages['QER2'] = 'A front panel key was pressed.'
+        if status and 0b00000010:
+            messages['QER1'] = 'Over current protection tripped.'
+        if status and 0b00000001:
+            messages['QER0'] = 'Over voltage protection tripped.'
+            
+        status = int(self.query('status:questionable?'))
+        # operation status
+        if status and 0b10000000:
+            messages['OSR7'] = 'Battery running status.'
+        if status and 0b01000000:
+            messages['OSR6'] = 'Negative constant current mode.'
+        if status and 0b00100000:
+            messages['OSR5'] = 'Constant current mode.'
+        if status and 0b00010000:
+            messages['OSR4'] = 'Constant voltage mode.'
+        if status and 0b00001000:
+            messages['OSR3'] = 'Output status on.'
+        if status and 0b00000100:
+            messages['OSR2'] = 'Waiting for trigger.'
+        if status and 0b00000010:
+            messages['OSR1'] = 'There is an Error.'
+        if status and 0b00000001:
+            messages['OSR0'] = 'Calibrating.'
+        
+        return messages
+
+
+    def setMaxCurrVolt(self,  currentLim=5, voltageLim=10, verbose=False):
+        """
+        Set maximum current values for each ECB channel, as long as they are under the threshold specified in the API source code.
+        Args:
+        -maxValue
+
+        Returns: error code iff an error occurs
+        """
+        if currentLim > 5.05:
+            currentLim = 5.05
+            if verbose:
+                print('Current cannot be higher than 5A')
+        if voltageLim > 30:
+            voltageLim = 30
+            if verbose:
+                print('Voltage cannot be higher than 30V')
+    
+        self._write('current:limit:state ON;:voltage:limit:state ON')
+        self._write(f'current:limit {currentLim};:voltage:limit {voltageLim}')
+        
+
+    def setOutputSpeed(self, mode='normal', time=1):
+        """
+        Set the reaction speed of the output.
+
+        Args:
+            mode (str, optional): normal, fast or time. Defaults to 'normal'.
+            time (float, optional): 0.001 - 86400s, only in time mode. Defaults to 1.
+        """
+        modes = ['normal', 'fast', 'time']
+        basecmd = 'output:speed'
+        
+        if not mode in modes:
+            return
+        
+        self._write(f'{basecmd} {mode}')
+        if mode == 'time':
+            self._write(f'{basecmd}:time {time}')
+            
+            
+    def outputInfo(self):
+        """
+        Returns output type (high or low capacitance) and relay mode.
+        """
+        output_type = self.query('output:type?')
+        output_mode = self.query('output:relay:mode?')
+        output_speed = self.query('output:speed?')
+        res = 'type: ' + output_type + '; mode: ' + output_mode + '; speed: ' + output_speed
+        return res

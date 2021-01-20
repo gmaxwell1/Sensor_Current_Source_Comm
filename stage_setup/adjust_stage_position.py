@@ -21,19 +21,15 @@ import os
 
 ########## local imports ##########
 try:
-    from modules.conexcc_control import setup, reset_to
+    from conexCC.conexcc_control import setup, reset_to
 except ModuleNotFoundError:
     import sys
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
 finally:
-    from modules.conexcc_control import setup, reset_to, get_coords
-    from conexcc.conexcc_class import *
-    from modules.calibrate_cube import angle_calib_cube, av_single_sens, find_center_axis_with_cube
-    from modules.calibration import find_center_axis
-    from modules.plot_hall_cube import plot_angle_spherical, plot_angle
-    from modules.serial_reader import get_new_data_set
-    from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    from modules.MetrolabMeasurements import get_mean_dataset_MetrolabSensor
+    from conexCC.conexcc_control import setup, reset_to, get_coords
+    from conexCC.conexcc_class import *
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+   
 
 
 # %%

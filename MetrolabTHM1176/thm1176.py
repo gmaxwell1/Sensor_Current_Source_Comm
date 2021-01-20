@@ -55,7 +55,7 @@ class MetrolabTHM1176Node(object):
     # Order matters, this is linked to the fetch command that is sent to retrived data
     fetch_kinds = ['Bx', 'By', 'Bz', 'Timestamp', 'Temperature']
 
-    defaults = {'block_size': 10, 'period': 0.1, 'range': '0.1T',
+    defaults = {'block_size': 10, 'period': 0.1, 'range': 'auto',
                 'average': 1, 'unit': 'MT', 'n_digits': 5}
 
     def __init__(self, *args, **kwargs):
@@ -79,8 +79,6 @@ class MetrolabTHM1176Node(object):
 
         # Write settings to device
         #self.sensor.write(":format:data default")
-        self.sensor.write(":unit " + self.unit)
-        self.sensor.write(":sense:range:upper " + self.range)
 
         logging.debug('range upper %s', self.sensor.ask(":sense:range:upper?"))
 
@@ -130,8 +128,13 @@ class MetrolabTHM1176Node(object):
             self.unit = kwargs['unit']
 
         self.sensor.write(":UNIT " + self.unit)
-        self.sensor.write(":SENS " + self.range)
-        self.sensor.write(":SENS:AUTO OFF")
+        
+        if self.range != 'auto'
+            self.sensor.write(":SENS " + self.range)
+            self.sensor.write(":SENS:AUTO OFF")
+        else:
+            self.sensor.write(":SENS:AUTO ON")
+
         self.setAveragingCount()
         self.set_periodic_trigger()
 
@@ -331,8 +334,9 @@ if __name__ == '__main__':
               'range': '0.3T', 'average': 1, 'unit': 'MT'}
 
         # data_stack = []  # list is thread safe
-    for i in range(3):
-        with MetrolabTHM1176Node(**params) as thm:
+    with MetrolabTHM1176Node(**params) as thm:
+        for i in range(3):
+            print(thm.sensor.ask('sense:auto ON'))
             thread = threading.Thread(target=thm.start_acquisition)
             thread.start()
             sleep(10)
