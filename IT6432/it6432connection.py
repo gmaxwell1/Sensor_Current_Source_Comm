@@ -22,6 +22,7 @@ class GenericError(ErrorBase):
         print(f'{code}: {msg}')
 
 class ParameterOverflow(ErrorBase): pass
+class WrongUnitsForParam(ErrorBase): pass
 class InvalidCommand(ErrorBase): pass
 class ExecutionError(ErrorBase): pass
 class ErrorQueueOverrun(ErrorBase): pass
@@ -48,6 +49,7 @@ class IT6432Connection:
     def _ErrorFactory(code, msg=''):
         errorClasses = {
             120: ParameterOverflow,
+            130: WrongUnitsForParam,
             170: InvalidCommand,
             -101: InvalidCharacter,
             -102: SyntaxErrorSCPI,
@@ -81,7 +83,12 @@ class IT6432Connection:
         self._chunk_size = 1024
         
         self._timeout = 5.0
-    
+        # current limit
+        self.MAX_CURR = 5.05
+        self.MAX_VOLT = 30
+        self.currentLim = 0
+        self.voltageLim = 0
+        
     #-----------------------------------------------------#
     #------------------ Basic functions ------------------#
     #-----------------------------------------------------#
@@ -100,11 +107,14 @@ class IT6432Connection:
             self.port = self.IT6432_PORT
             self.sock.connect((self.host, self.port))
             self.connected = True
-
-            id_info = self.query('*IDN?')
-            print(id_info.strip('\n'))
-            
             self.sock.settimeout(self._timeout)
+
+            # id_info = self.query('*IDN?')
+            # print(id_info.strip('\n'))
+            
+            limits = self.getMaxMinOutput()
+            self.currentLim = limits[0]
+            self.voltageLim = limits[2]
             
         except Exception as exc:
             # logger.debug(f'A problem occured while trying to connect to channel {self._channel}: {exc}')
@@ -327,7 +337,7 @@ class IT6432Connection:
         if status and 0b00000001:
             messages['QER0'] = 'Over voltage protection tripped.'
             
-        status = int(self.query('status:questionable?'))
+        status = int(self.query('status:operation?'))
         # operation status
         if status and 0b10000000:
             messages['OSR7'] = 'Battery running status.'
@@ -357,17 +367,21 @@ class IT6432Connection:
 
         Returns: error code iff an error occurs
         """
-        if currentLim > 5.05:
-            currentLim = 5.05
+        if currentLim > self.MAX_CURR:
+            self.currentLim = self.MAX_CURR
             if verbose:
-                print('Current cannot be higher than 5A')
-        if voltageLim > 30:
-            voltageLim = 30
+                print('Current cannot be higher than 5.05A')
+        else:
+            self.currentLim = currentLim
+        if voltageLim > self.MAX_VOLT:
+            self.voltageLim = self.MAX_VOLT
             if verbose:
                 print('Voltage cannot be higher than 30V')
-    
+        else:
+            self.voltageLim = voltageLim
+
         self._write('current:limit:state ON;:voltage:limit:state ON')
-        self._write(f'current:limit {currentLim};:voltage:limit {voltageLim}')
+        self._write(f'current:limit {self.currentLim};:voltage:limit {self.voltageLim}')
         
 
     def setOutputSpeed(self, mode='normal', time=1):

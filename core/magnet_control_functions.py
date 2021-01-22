@@ -615,23 +615,23 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
     
     
 if __name__ == "__main__":
-    # params = {'block_size': 40, 'period': 0.01, 'duration': 9000, 'averaging': 1}
+    params = {'block_size': 40, 'period': 0.01, 'duration': 120, 'averaging': 5}
     
     # arduino = ArduinoUno('COM7')
     # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     
-    # faden = myMeasThread(1, **params)
+    faden = myMeasThread(1, **params)
 
-    # faden.start()
+    faden.start()
     # measure_temp.start()
 
-    runCurrents([np.array([3000,3000,3000])])
+    # runCurrents([np.array([3000,3000,3000])])
     # openConnection()
     # enableCurrents()
     # sleep(17700)
     # demagnetizeCoils()
     # disableCurrents()
-    # faden.join()
+    faden.join()
     # arduino.stop = True
     # measure_temp.join()
     # saveTempData(arduino.data_stack,
@@ -640,4 +640,4 @@ if __name__ == "__main__":
 
     # closeConnection()
     
-    # strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\temperature_drift_DC_Source', '3_coils_series_Temp', now=True)
+    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents', 'testing_5_-4_-5', now=True)
