@@ -90,7 +90,7 @@ def setCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None, des
     idx_1 = channel_1._channel - 1
     current_1 = signs[idx_1] * desCurrents[idx_1] / 1000 if abs(desCurrents[idx_1]) <= 5000 else 5.0
     v_set_1 = signs[idx_1] * 0.49 * current_1
-    
+
     rampVoltage(channel_1, v_set_1, current_1)
 
     if channel_2 is not None:
@@ -108,60 +108,77 @@ def setCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None, des
         rampVoltage(channel_3, v_set_3, current_3)
         
         
-def rampVoltage(connection: IT6432Connection, set_voltage, set_current):
+def rampVoltage(connection: IT6432Connection, new_voltage, new_current):
 
+    connection.clrOutputProt()
+    
     if connection.query('output?') == '0':
-        connection._write(f'voltage 0V')
+        connection._write('voltage 0V')
         connection._write('output 1')
 
-    if set_current > connection.currentLim:
-        set_current = connection.currentLim
-    elif set_current < 0.002:
-        set_current = 0.002
-        set_voltage = 0
-    if abs(set_voltage) > connection.voltageLim:
-        set_voltage = connection.voltageLim
+    if new_current > connection.currentLim:
+        new_current = connection.currentLim
+    elif new_current < 0.002:
+        new_current = 0.002
+        new_voltage = 0
+    if abs(new_voltage) > connection.voltageLim:
+        new_voltage = connection.voltageLim
         
-    print('desired voltage: ' + str(set_voltage) +'V, desired current: ' + str(set_current) + 'A')
+    print('desired voltage: ' + str(new_voltage) +'V, desired current: ' + str(new_current) + 'A')
 
-    act_voltage = getMeasurement(connection, meas_quantity='voltage')[0]
-    act_current = getMeasurement(connection, meas_quantity='current')[0]
-    print('actual voltage: ' + str(act_voltage) +'V, actual current: ' + str(act_current) + 'A')
-    connection._write(f'voltage {act_voltage}V')
-    
-    if set_current - abs(act_current):
-        print('actual current (abs): ' + str(abs(act_current)) + ', desired current: ' + str(set_current))
-        connection._write(f'current {set_current}A')
+    meas_voltage = getMeasurement(connection, meas_quantity='voltage')[0]
+    set_voltage = meas_voltage
+    connection._write(f'voltage {set_voltage:.3f}V')
+
+    meas_current = getMeasurement(connection, meas_quantity='current')[0]
+    print('actual voltage: ' + str(meas_voltage) +'V, actual current: ' + str(meas_current) + 'A')
+    if new_current - abs(meas_current) >= 0:
+        connection._write(f'current {new_current}A')
         
-    diff_v = set_voltage - act_voltage
+    diff_v = new_voltage - meas_voltage
     sign = np.sign(diff_v)
-    diff_i = sign * set_current - act_current
-    print('voltage diff: ' + str(diff_v) + ', current diff: ' + str(diff_i))
-    
-    if abs(set_voltage) < 0.1:
-        threshold = 0.01
-    else:
-        threshold = 0.1
 
-    while abs(diff_v) > threshold and abs(diff_i) > threshold:
-        # if abs(diff_v) > 0.1:
-        #     step = 0.1
-        # elif abs(diff_v) <= 0.1:
-        #     step = 0.01
-        act_voltage += sign * 0.01
-        print('setting voltage: ' + str(act_voltage))
-        connection._write(f'voltage {act_voltage}V')
-        act_voltage = getMeasurement(connection, meas_quantity='voltage')[0]
-        act_current = getMeasurement(connection, meas_quantity='current')[0]
-        print('actual voltage: ' + str(act_voltage) +'V, actual current: ' + str(act_current) + 'A')
-        diff_v = set_voltage - act_voltage
-        diff_i = sign * set_current - act_current
-        print('voltage diff: ' + str(diff_v) + ', current diff: ' + str(diff_i))
-        # sleep(0.05)
-        
-    connection._write(f'voltage {set_voltage}V;:current {set_current}A')
+    diff_i = sign * new_current - meas_current
+   
+    # print('voltage diff: ' + str(diff_v) + ', current diff: ' + str(diff_i))
+    set_voltage_queue = [set_voltage]
+    repeat = False
+    repeat_count = 0
     
-    if set_current <= 0.002:
+    threshold = 0.1 if abs(new_voltage) > 0.15 else 0.01
+
+    while abs(diff_v) > threshold and abs(diff_i) > threshold and repeat_count < 5:
+        # change the ramping speed depending on how far from zero we are.
+        # zero must be approached very slowly...
+        if abs(set_voltage) <= 0.15:
+            step = 0.01
+            sleep(0.05)
+        elif abs(set_voltage) <= 0.5 or new_voltage <= 0.15:
+            step = 0.1
+        else:
+            step = 0.5
+            
+        set_voltage = set_voltage + sign * step
+        print(f'setting voltage: {set_voltage}')
+        connection._write(f'voltage {set_voltage}V')
+        
+        set_voltage_queue.insert(0, set_voltage)
+        meas_current = getMeasurement(connection, meas_quantity='current')[0]
+        diff_v = new_voltage - set_voltage
+        diff_i = sign * new_current - meas_current
+        print(f'voltage diff: {diff_v:.3f}, current diff: {diff_i:.3f}')
+        
+        repeat = abs(set_voltage_queue[0] - set_voltage_queue[1]) < 0.005
+        if repeat:
+            repeat_count += 1
+        else:
+            repeat_count = 0
+        print(f'>>> next round!, {repeat_count}')
+    
+    print('done!')
+    connection._write(f'voltage {new_voltage}V;:current {new_current}A')
+    
+    if new_current <= 0.002:
         connection._write('output 0')
 
         
@@ -217,13 +234,12 @@ def demagnetizeCoils(channel_1: IT6432Connection, channel_2=IT6432Connection, ch
     # channel_2._write('output 1')
     # channel_3._write('output 1')
     
-    tspan = np.linspace(0,6*np.pi,20)
-    func1 = voltage_config[0] * np.cos(tspan)
-    func2 = voltage_config[1] * np.cos(tspan)
-    func3 = voltage_config[2] * np.cos(tspan)
-    i_limit = 1/(tspan + 1)
-    
-    
+    tspan = np.linspace(0,5,5)
+    func1 = current_config[0] * np.exp(-0.2*tspan)
+    func2 = current_config[1] * np.exp(-0.2*tspan)
+    func3 = current_config[2] * np.exp(-0.2*tspan)
+   
+    sign = 1
     # channel_1._write('INITiate:name transient')
     # channel_2._write('INITiate:name transient')
     # channel_3._write('INITiate:name transient')
@@ -233,9 +249,10 @@ def demagnetizeCoils(channel_1: IT6432Connection, channel_2=IT6432Connection, ch
         desCurrents[0] = func1[k]
         desCurrents[1] = func2[k]
         desCurrents[2] = func3[k]
-        print(desCurrents)
-        rampVoltage(channel_1, voltage_config[0], i_limit)
-        
+        sign = sign * -1
+        rampVoltage(channel_1, sign * current_config[0], func1[k])
+        rampVoltage(channel_2, sign * current_config[1], func2[k])
+        rampVoltage(channel_3, sign * current_config[2], func3[k])
     #     sleep(1 - time() * 1 % 1)
 
 
@@ -246,30 +263,42 @@ if __name__ == '__main__':
     channel_3 = IT6432Connection(3)
     openConnection(channel_1,channel_2,channel_3)
    
-    # print(channel_1.query('VOLTage:PROTection:state 1'))
-    # print(channel_2.query('VOLTage:PROTection:state 1'))
-    # print(channel_3.query('VOLTage:PROTection:state 1'))
+    # channel_1._write('output:type high')
+    # print(channel_2._write('output:type high'))
+    # print(channel_3._write('output:type high'))
     
-    print(channel_1.clrOutputProt())
-    print(channel_2.clrOutputProt())
-    print(channel_3.clrOutputProt())
+    # print(channel_1.clrOutputProt())
+    # print(channel_2.clrOutputProt())
+    # print(channel_3.clrOutputProt())
     #getMaxMinOutput()
     #setMaxCurrVolt(5.02)
 
     # demagnetizeCoils(channel_1,channel_2,channel_3, [5,5,5])
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[3000,-3000,1200])
-    # disableCurrents(channel_1, channel_2, channel_3)
-    
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5000, 0,-1200])
-    
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[-5000, 5000, 5000])
+    setCurrents(channel_2, desCurrents=[0,10,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0,100,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 500,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 1000,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 1500,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 2000,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 2500,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 3000,0])
+    sleep(10)
+    setCurrents(channel_2, desCurrents=[0, 3500,0])
+    sleep(10)
 
-
-    # setCurrents(channel_1,channel_2,channel_3, [-1330,2828,-100])
-    # channel_2._write('current:limit 5;:voltage:limit 5')
-    # channel_2._write('output 1')
-    # channel_3._write('current:limit 5;:voltage:limit 5')
-    # channel_3._write('output 1')
+    # volt_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='voltage')
+    # print(volt_list)
+    # V = 0.4
+    # channel_1._write(f'voltage {V}V;STEP 0.1V;:current 1A')
+    # channel_2._write('INITiate:name transient')
+    # channel_3._write('INITiate:name transient') 
     
     # print(channel_1.query('system:err?'))
     # print('output 1: ' + channel_1.query('output?'))
@@ -282,7 +311,6 @@ if __name__ == '__main__':
     # stat = channel_3.getStatus()
     # print(f'status 3: {stat}')
     # for i in range(10):
-    #     volt_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='voltage')
     #     pwr_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='power')
     #     print(f'power on channel 1/2/3: {pwr_list[0]:.3f}W, {pwr_list[1]:.3f}W, {pwr_list[2]:.3f}W')
         

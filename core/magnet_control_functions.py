@@ -615,22 +615,39 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
     
     
 if __name__ == "__main__":
-    params = {'block_size': 40, 'period': 0.01, 'duration': 120, 'averaging': 5}
+    params = {'block_size': 20, 'period': 0.05, 'duration': 420, 'averaging': 5}
     
     # arduino = ArduinoUno('COM7')
     # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     
+    channel_2 = IT6432Connection(2)
+    openConnection(channel_2)
+    disableCurrents(channel_2)
+
     faden = myMeasThread(1, **params)
 
     faden.start()
     # measure_temp.start()
 
-    # runCurrents([np.array([3000,3000,3000])])
-    # openConnection()
-    # enableCurrents()
-    # sleep(17700)
-    # demagnetizeCoils()
-    # disableCurrents()
+    setCurrents(channel_2, desCurrents=[0,10,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0,100,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 500,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 1000,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 1500,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 2000,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 2500,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 3000,0])
+    sleep(20)
+    setCurrents(channel_2, desCurrents=[0, 3500,0])
+    sleep(20)
+
     faden.join()
     # arduino.stop = True
     # measure_temp.join()
@@ -638,6 +655,7 @@ if __name__ == "__main__":
     #                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
     #                         filename_suffix='temp_meas_temp_control_50mT')
 
-    # closeConnection()
+    disableCurrents(channel_2)
+    closeConnection(channel_2)
     
-    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents', 'testing_5_-4_-5', now=True)
+    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents', 'testing_coil2ramp', now=True)
