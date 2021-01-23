@@ -320,7 +320,7 @@ class IT6432Connection:
         if status and 0b00000001:
             messages['ESR0'] = 'An operation completed.'
             
-        status = int(self.query('status:questionable?'))
+        status = int(self.query('status:questionable:condition?'))
         # questionable event status 
         if status and 0b01000000:
             messages['QER6'] = 'Overload current is set.'
@@ -337,7 +337,7 @@ class IT6432Connection:
         if status and 0b00000001:
             messages['QER0'] = 'Over voltage protection tripped.'
             
-        status = int(self.query('status:operation?'))
+        status = int(self.query('status:operation:condition?'))
         # operation status
         if status and 0b10000000:
             messages['OSR7'] = 'Battery running status.'

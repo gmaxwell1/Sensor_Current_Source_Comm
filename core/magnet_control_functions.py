@@ -169,7 +169,7 @@ class timerThread(threading.Thread):
 
 
 def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2_length4.csv', datadir='config_tests',
-              factor=0, BField=False, demagnetize=False, today=True):
+              factor=0, BField=False, demagnetize=False, today=True, temp_meas=True):
     """
     Reads current configurations/values from a csv file, depending on the file the configurations need to be multiplied by a current,
     otherwise factor can be 1000 to convert A to mA (or 1 if values are given in mA) and the actual numbers will be set as current
@@ -199,10 +199,11 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     expected_fields = []
     all_curr_vals = []
     
-    # initialize temperature sensor and measurement routine and start measuring
-    # arduino = ArduinoUno('COM7')
-    # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
-    # measure_temp.start()
+    if temp_meas:
+        # initialize temperature sensor and measurement routine and start measuring
+        arduino = ArduinoUno('COM7')
+        measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
+        measure_temp.start()
        
     ##########################################################################
     input_list = []
@@ -212,10 +213,10 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         input_list = list(contents)
 
     meas_duration = 22
-    if not demagnetize:
-        meas_duration = 0.5
+    # if not demagnetize:
+    #     meas_duration = 22
     time_estimate = len(input_list) * meas_duration
-
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     for i, row in enumerate(input_list):
         if demagnetize:
             demagnetizeCoils(channel_1, channel_2, channel_3, current_config = 5000*np.ones(3))
@@ -230,11 +231,10 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
             
         for k in range(3):
             desCurrents[k] = config[k]*factor
-        all_curr_vals.append(config*factor)
         
         setCurrents(channel_1, channel_2, channel_3, desCurrents)
         # Let the field stabilize
-        sleep(0.5)
+        sleep(2)
         
         time_estimate = time_estimate - meas_duration
         print(f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
@@ -242,9 +242,12 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
-        mean_data, std_data = measure(node, N=7, average=True)
+        mean_data, std_data = measure(node, N=10, average=True)
+        meas_currents = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='current')
+        # meas_power = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='power')
         mean_values.append(mean_data)
         stdd_values.append(std_data)
+        all_curr_vals.append(np.array(meas_currents))
         # we already know the expected field values
         if BField:
             expected_fields.append(B_vector)
@@ -252,13 +255,14 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
             # estimate of resulting B field
             B_expected = tr.computeMagField(config*factor, windings)
             expected_fields.append(B_expected)
-    ##########################################################################
-    # save temperature measurements
-    # arduino.stop = True
-    # measure_temp.join()
-    # saveTempData(arduino.data_stack,
-    #              directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_1_Vector_Magnet\2_ECB_Control_Code\ECB_Main_Comm_Measurement\temperature_measurements',
-    #              filename_suffix='temp_meas_during_gridsweep')
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
+    if temp_meas:
+        # save temperature measurements
+        arduino.stop = True
+        measure_temp.join()
+        saveTempData(arduino.data_stack,
+                    directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                    filename_suffix='temp_meas_during_Bsweep')
     ##########################################################################
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
@@ -615,47 +619,48 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
     
     
 if __name__ == "__main__":
-    params = {'block_size': 20, 'period': 0.05, 'duration': 420, 'averaging': 5}
+    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
     
     # arduino = ArduinoUno('COM7')
     # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
-    
+    channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
-    openConnection(channel_2)
-    disableCurrents(channel_2)
+    channel_3 = IT6432Connection(3)
+    openConnection(channel_1, channel_2, channel_3)
+    # disableCurrents(channel_1, channel_2, channel_3)
 
     faden = myMeasThread(1, **params)
 
-    faden.start()
     # measure_temp.start()
 
-    setCurrents(channel_2, desCurrents=[0,10,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0,100,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 500,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 1000,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 1500,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 2000,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 2500,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 3000,0])
-    sleep(20)
-    setCurrents(channel_2, desCurrents=[0, 3500,0])
-    sleep(20)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,0,10])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-34,0,100])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,569,500])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[200,0,1000])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,3000,1500])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,-222,2000])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[2930,0,2500])
+    # sleep(2)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-3000,0,3000])
+    # sleep(2)
+    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5000,5000,5000])
+    faden.start()
 
     faden.join()
+    disableCurrents(channel_1, channel_2, channel_3)
+
     # arduino.stop = True
     # measure_temp.join()
     # saveTempData(arduino.data_stack,
     #                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
     #                         filename_suffix='temp_meas_temp_control_50mT')
 
-    disableCurrents(channel_2)
-    closeConnection(channel_2)
+    closeConnection(channel_1, channel_2, channel_3)
     
-    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents', 'testing_coil2ramp', now=True)
+    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents', 'testing_coil3ramp', now=True)
