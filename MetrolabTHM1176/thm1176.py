@@ -334,13 +334,15 @@ if __name__ == '__main__':
               'range': '0.3T', 'average': 1, 'unit': 'MT'}
 
         # data_stack = []  # list is thread safe
-    with MetrolabTHM1176Node(**params) as thm:
-        for i in range(3):
-            print(thm.sensor.ask('sense:auto ON'))
-            thread = threading.Thread(target=thm.start_acquisition)
-            thread.start()
-            sleep(10)
-            thm.stop = True
-            thread.join()
-        print(thm.data_stack)
+    thm = MetrolabTHM1176Node(**params)
+    # thm.sensor.write('*CLS')
+    # print(thm.sensor.ask('*CLS'))
+    for i in range(3):
+        
+        thread = threading.Thread(target=thm.start_acquisition)
+        thread.start()
+        sleep(10)
+        thm.stop = True
+        thread.join()
+    print(thm.data_stack)
 

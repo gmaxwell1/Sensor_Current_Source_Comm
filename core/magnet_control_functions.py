@@ -273,7 +273,7 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     else:
         filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}'
     # saving data section (prepared for plotting)
-    saveDataPoints((np.array(all_curr_vals) / 1000), np.array(mean_values),
+    saveDataPoints((np.array(all_curr_vals) ), np.array(mean_values),
                    np.array(stdd_values), np.array(expected_fields), filePath, fileprefix)
     
     if demagnetize:
@@ -545,18 +545,19 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                 threadLock.release()
 #############################################################################################################################
     else:
-        # initialize temperature sensor and measurement routine and start measuring
         if temp_meas:
             arduino = ArduinoUno('COM7')
             measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
             measure_temp.start()
-
+    
         # use only with Metrolab sensor
         try:
             duration = int(input('Duration of measurement (default is 10s): '))
-            period = int(input('Measurement trigger period (default is 0.5s, 0.01-2.2s): '))
         except:
             duration = 10
+        try:
+            period = float(input('Measurement trigger period (default is 0.5s, 0.01-2.2s): '))
+        except:
             period = 0.5
         
         if period < 0.1:
@@ -565,9 +566,10 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
             block_size = 30
         elif period >= 0.5:
             block_size = 1
-            
+
+        # print(duration, period)
         global returnDict
-        params = {'name': 'BFieldMeasurement', 'block_size': block_size, 'period': 0.5, 'duration': duration, 'averaging': 3}
+        params = {'name': 'BFieldMeasurement', 'block_size': block_size, 'period': period, 'duration': duration, 'averaging': 3}
         faden = myMeasThread(10, **params)
         
         gotoPosition()
