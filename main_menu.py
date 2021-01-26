@@ -1,18 +1,15 @@
-"""
-filename: main_menu.py
+# filename: main_menu.py
+#
+# This script is meant to be used as an interface with the Vector Magnet. The user can choose from various
+# methods to set currents on the different channels and thus communicate with the current sources. The standard
+# interface for now is the command line, but the ultimate goal is to integrate this into QS3.
+#
+# Author: Maxwell Guerne-Kieferndorf (QZabre)
+#         gmaxwell at student.ethz.ch
+#
+# Date: 09.10.2020
+# latest update: 22.01.2021
 
-This script is meant to be used as an interface with the Vector Magnet. The user can choose from various
-methods to set currents on the different channels and thus communicate with the current sources. The standard 
-interface for now is the command line, but the ultimate goal is to integrate this into QS3.
-Warning: the very interactive but simple nature of this script means there are lots of input prompts to replace a GUI.
-         I apologize to any programmers in advance.
-
-Author: Maxwell Guerne-Kieferndorf (QZabre)
-        gmaxwell@student.ethz.ch
-
-Date: 09.10.2020
-latest update: 22.01.2021
-"""
 ########## Standard library imports ##########
 import numpy as np
 import math
@@ -22,7 +19,6 @@ import os
 from scipy import stats
 
 ########## local imports ##########
-
 from core.magnet_control_functions import *
 from core.measurement_functions import gotoPosition
 import other_useful_functions.feedback as fb
@@ -81,7 +77,7 @@ def callGridSweep():
     # the values for each measurement run should be the same for consistent results
     try:
         start_val = int(inp1)
-    except:
+    except BaseException:
         print("expected numerical value, defaulting to -4500")
         start_val = -4500
 
@@ -134,7 +130,7 @@ def callRunCurrents():
             c1 = float(inp3)
             configs.append(np.array([a1, b1, c1]))
             timers.append(float(inp4))
-        except:
+        except BaseException:
             print("expected numerical value, defaulting to (0,0,1)")
             configs.append(np.array([0, 0, 1]))
             timers.append(0)
@@ -176,7 +172,7 @@ def callGenerateVectorField():
             c1 = float(inp3)
             vector.append(np.array([a1, b1, c1]))
             timers.append(float(inp4))
-        except:
+        except BaseException:
             print("expected numerical value, defaulting to (0,0,10)")
             vector.append(np.array([0, 0, 10]))
             timers.append(0)
@@ -186,13 +182,13 @@ def callGenerateVectorField():
         else:
             char = "x"
 
-    inp5 = input("demagnetize afterwards? (y/n) ")
+    inp5 = input("measure temperature? (y/n): ")
 
     subdir = "default_location"
     if inp0 == "":
         subdir = input("Which subdirectory should measurements be saved to? ")
 
-    generateMagneticField(vector, timers, subdir, (inp5 == "y"))
+    generateMagneticField(vector, timers, subdir, False, (inp5 == "y"))
 
 
 def feedbackMode():

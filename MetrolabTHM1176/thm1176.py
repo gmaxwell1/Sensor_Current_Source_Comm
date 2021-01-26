@@ -13,17 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Mainly adapted from external sources, this file contains a Python class for working with the
-Metrolab THM1176-MF hall magnetometer.
-
-Author: Maxwell Guerne-Kieferndorf
-        gmaxwell (at) ethz.ch
-        
-started mid-October 2020
-latest update: 20.01.2021
-"""
-
+#
+# Mainly adapted from external sources, this file contains a Python class for working with the
+# Metrolab THM1176-MF hall magnetometer.
+#
+# Author: Maxwell Guerne-Kieferndorf
+#         gmaxwell (at) ethz.ch
+#
+# started mid-October 2020
+# latest update: 20.01.2021
 
 import usbtmc
 import numpy as np
@@ -31,7 +29,6 @@ import logging
 from time import sleep, time
 import threading
 import matplotlib.pyplot as plt
-
 
 
 class MetrolabTHM1176Node(object):
@@ -128,7 +125,7 @@ class MetrolabTHM1176Node(object):
             self.unit = kwargs['unit']
 
         self.sensor.write(":UNIT " + self.unit)
-        
+
         if self.range != 'auto':
             self.sensor.write(":SENS " + self.range)
             self.sensor.write(":SENS:AUTO OFF")
@@ -333,16 +330,15 @@ if __name__ == '__main__':
     params = {'block_size': 1, 'period': 0.5,
               'range': '0.3T', 'average': 1, 'unit': 'MT'}
 
-        # data_stack = []  # list is thread safe
+    # data_stack = []  # list is thread safe
     thm = MetrolabTHM1176Node(**params)
     # thm.sensor.write('*CLS')
     # print(thm.sensor.ask('*CLS'))
     for i in range(3):
-        
+
         thread = threading.Thread(target=thm.start_acquisition)
         thread.start()
         sleep(10)
         thm.stop = True
         thread.join()
     print(thm.data_stack)
-

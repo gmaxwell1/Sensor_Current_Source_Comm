@@ -1,16 +1,15 @@
-"""
-filename: measurement_functions.py
+# filename: measurement_functions.py
+#
+# This script is meant to be used to measure magnetic field values with the Hall
+# sensor cube/Metrolab THM1176. It is adapted to interface with the ECB, e.g. to set current values and
+# measure the generated magnetic field of the vector magnet.
+#
+# Author: Nicholas Meinhardt, Maxwell Guerne-Kieferndorf (QZabre)
+#         nmeinhar at student.ethz.ch, gmaxwell at student.ethz.ch
+#
+# Date: 20.10.2020
+# latest update: 08.01.2021
 
-This script is meant to be used to measure magnetic field values with the Hall
-sensor cube/Metrolab THM1176. It is adapted to interface with the ECB, e.g. to set current values and 
-measure the generated magnetic field of the vector magnet.
-
-Author: Nicholas Meinhardt, Maxwell Guerne-Kieferndorf (QZabre)
-        nmeinhar@student.ethz.ch, gmaxwell@student.ethz.ch
-
-Date: 20.10.2020
-latest update: 08.01.2021
-"""
 ########## Standard library imports ##########
 import numpy as np
 # import serial
@@ -93,15 +92,15 @@ def gotoPosition(meas_height=1.2, meas_y=6.6, meas_x=7.2):
 
     meas_offset_z = meas_height
     start_pos_z = CC_Z.read_cur_pos()
-    total_distance_z = abs(meas_offset_z-start_pos_z)
+    total_distance_z = abs(meas_offset_z - start_pos_z)
 
     meas_offset_y = meas_y
     start_pos_y = CC_Y.read_cur_pos()
-    total_distance_y = abs(meas_offset_y-start_pos_y)
+    total_distance_y = abs(meas_offset_y - start_pos_y)
 
     meas_offset_x = meas_x
     start_pos_x = CC_X.read_cur_pos()
-    total_distance_x = abs(meas_offset_x-start_pos_x)
+    total_distance_x = abs(meas_offset_x - start_pos_x)
 
     CC_Z.move_absolute(new_pos=meas_offset_z)
     CC_Y.move_absolute(new_pos=meas_offset_y)
@@ -119,9 +118,9 @@ def progressBar(CC: ConexCC, start_pos, total_distance):
     while not CC.is_ready():
         sleep(0.02)
         pos = CC.read_cur_pos()
-        ratio = (abs(pos-start_pos) / total_distance)
+        ratio = (abs(pos - start_pos) / total_distance)
         left = int(ratio * 30)
-        right = 30-left
+        right = 30 - left
         print('\r[' + '#' * left + ' ' * right + ']',
               f' {ratio * 100:.0f}%', sep='', end='', flush=True)
 
@@ -130,7 +129,7 @@ def progressBar(CC: ConexCC, start_pos, total_distance):
 
 def measure(node: MetrolabTHM1176Node, N=10, max_num_retrials=5, average=False):
     """
-    Measures the magnetic field with the Metrolab sensor. Returns either raw measured values of field components (x, y, z) 
+    Measures the magnetic field with the Metrolab sensor. Returns either raw measured values of field components (x, y, z)
     or mean and standard deviation in each direction.
 
     Args:
@@ -154,7 +153,7 @@ def measure(node: MetrolabTHM1176Node, N=10, max_num_retrials=5, average=False):
         try:
             # an N by 3 array
             meas_data = np.array(node.measureFieldArraymT(N)).swapaxes(0, 1)
-        except:
+        except BaseException:
             pass
         else:
             break
@@ -162,7 +161,8 @@ def measure(node: MetrolabTHM1176Node, N=10, max_num_retrials=5, average=False):
     try:
         # due to the setup, transform sensor coordinates to magnet coordinates
         meas_data = sensor_to_magnet_coordinates(meas_data)
-    # if it was not possible to obtain valid measurement results after max_num_retrials, raise MeasurementError, too
+    # if it was not possible to obtain valid measurement results after
+    # max_num_retrials, raise MeasurementError, too
     except UnboundLocalError:
         raise MeasurementError
 
@@ -184,7 +184,7 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
 
     Args:
         period (float, optional): Trigger period in seconds. Defaults to 0.001 (1 ms).
-        averaging (int, optional): The arithmetic mean of this number of measurements is taken before they are fetched. 
+        averaging (int, optional): The arithmetic mean of this number of measurements is taken before they are fetched.
                                    Results in smoother measurements. Defaults to 1.
         block_size (int, optional): How many measurements should be fetched at once. Defaults to 1.
         duration (int, optional): Total duration of measurement. Defaults to 10.
@@ -193,13 +193,13 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
         ValueError: If for some reason the number of time values and B field values is different.
 
     Returns:
-        dictionary containing lists of floats: Bx, By, Bz, timeline, temp 
-        (x, y and z components of B field, times of measurements, temperature values 
+        dictionary containing lists of floats: Bx, By, Bz, timeline, temp
+        (x, y and z components of B field, times of measurements, temperature values
         are dimensionless values between 0 and 64k)
     """
     with MetrolabTHM1176Node(period=period, block_size=block_size, range='auto', average=average, unit='MT') as node:
         # gotoPosition(node, meas_height=1.5)
-    # node = MetrolabTHM1176Node(period=period, block_size=block_size, range='0.3 T', average=average, unit='MT')
+        # node = MetrolabTHM1176Node(period=period, block_size=block_size, range='0.3 T', average=average, unit='MT')
         thread = threading.Thread(target=node.start_acquisition)
         thread.start()
         sleep(duration)
@@ -222,28 +222,31 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
 
         t_offset = timeline[0]
         for ind in range(len(timeline)):
-            timeline[ind] = round(timeline[ind]-t_offset, 3)
+            timeline[ind] = round(timeline[ind] - t_offset, 3)
 
         # node.data_stack['Timestamp'] = timeline
 
     try:
-        if (len(node.data_stack['Bx']) != len(timeline) or len(node.data_stack['By']) != len(timeline) or len(node.data_stack['Bz']) != len(timeline)):
+        if (len(node.data_stack['Bx']) != len(timeline) or len(node.data_stack['By']) != len(
+                timeline) or len(node.data_stack['Bz']) != len(timeline)):
             raise ValueError(
                 "length of Bx, By, Bz do not match that of the timeline")
         else:
-            return {'Bx': xValues.tolist(), 'By': yValues.tolist(), 'Bz': zValues.tolist(), 'temp': node.data_stack['Temperature'], 'time': timeline}
+            return {'Bx': xValues.tolist(), 'By': yValues.tolist(), 'Bz': zValues.tolist(),
+                    'temp': node.data_stack['Temperature'], 'time': timeline}
     except Exception as e:
         print(e)
         return {'Bx': 0, 'By': 0, 'Bz': 0, 'time': 0, 'temp': 0}
 
 
-def saveDataPoints(I, mean_data, std_data, expected_fields, directory='.\\data_sets', data_filename_postfix='B_field_vs_I'):
+def saveDataPoints(I, mean_data, std_data, expected_fields,
+                   directory='.\\data_sets', data_filename_postfix='B_field_vs_I'):
     """
     Saves input data points to a .csv file
 
     Args:
-    - I, mean_values, std_values, expected_values are ndarrays of shape (#measurements, 3), 
-    containing applied current, experimentally estimated/expected mean values and standard deviations 
+    - I, mean_values, std_values, expected_values are ndarrays of shape (#measurements, 3),
+    containing applied current, experimentally estimated/expected mean values and standard deviations
     for x,y,z-directions.
     - directory: valid path of directory where the image should be saved
     - data_filename_postfix: The image is saved as '%y_%m_%d_%H-%M-%S_'+ data_filename_postfix +'.png'
@@ -270,7 +273,7 @@ def saveDataPoints(I, mean_data, std_data, expected_fields, directory='.\\data_s
                                'expected Bz [mT]': expected_fields[:, 2]})
             print('success!')
 
-    except:
+    except BaseException:
         df = pd.DataFrame({'I (all Channels) [A]': I,
                            'mean Bx [mT]': mean_data[:, 0],
                            'mean By [mT]': mean_data[:, 1],
@@ -291,49 +294,4 @@ def saveDataPoints(I, mean_data, std_data, expected_fields, directory='.\\data_s
 
 if __name__ == '__main__':
 
-    gotoPosition(20,0,20)
-  
-    # params = {'block_size': 10, 'period': 0.05, 'range': '0.3T',
-    #             'average': 1, 'unit': 'MT', 'n_digits': 5}
-
-    # current_values = []
-    # mean_values = []
-    # stdd_values = []
-    # expected_fields = []
-    
-    # # user controlled measurement series:
-    # coil = input('Which coil is being ramped? ')
-    # if coil == '1':
-    #     current_config = np.array([1,0,0])
-    # elif coil == '2':
-    #     current_config = np.array([0,1,0])
-    # elif coil == '3':
-    #     current_config = np.array([0,0,1])
-        
-    # node = MetrolabTHM1176Node(**params) as node:
-    # char = 0
-    
-    # while char != 'q':
-    #     try:
-    #         current = input('Current intensity (mA): ')
-    #         current = float(current)
-    #     except ValueError as e:
-    #         print(e, '\nAssuming 0 current')
-    #         current = 0
-    #     current_values.append(current * current_config)
-    #     expected_B_field = tr.computeMagField(current * current_config)
-    #     expected_fields.append(expected_B_field)
-    #     meanBField, stdBField = measure(node, average=True)
-    #     mean_values.append(meanBField)
-    #     stdd_values.append(stdBField)
-        
-    #     char = input('Next Measurement: Enter / Abort: type q and Enter\t')
-            
-    # I = np.array(current_values)
-    # mean_data = np.array(mean_values)
-    # std_data = np.array(stdd_values)
-    # expected_data = np.array(expected_fields)
-
-    # saveDataPoints(I,mean_data,std_data,expected_data, directory=r'.\data_sets\Hysteresis_DC_source', data_filename_postfix='hyst_meas')
-    
-    
+    gotoPosition(20, 0, 20)

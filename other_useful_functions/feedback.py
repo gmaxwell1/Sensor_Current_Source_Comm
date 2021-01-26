@@ -1,14 +1,12 @@
-"""
-filename: feedback.py
-
-This script is meant to be used control the magnetic field using feedback from measurement and a simple correction algorithm.
-
-Author: Maxwell Guerne-Kieferndorf (QZabre)
-        gmaxwell@student.ethz.ch
-
-Date: 10.11.2020
-latest update: Dec 2020
-"""
+# filename: feedback.py
+# 
+# This script is meant to be used control the magnetic field using feedback from measurement and a simple correction algorithm.
+# 
+# Author: Maxwell Guerne-Kieferndorf (QZabre)
+#         gmaxwell@student.ethz.ch
+# 
+# Date: 10.11.2020
+# latest update: Dec 2020
 
 ########## Standard library imports ##########
 import numpy as np

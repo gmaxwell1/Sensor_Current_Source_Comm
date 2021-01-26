@@ -1,17 +1,13 @@
-"""
-filename: magnet_control_functions.py
-
-This collection of functions has functions that can be used to manipulate the currents on the ECB channels. 
-The user can choose from various methods to set currents on the different channels and thus generate a magnetic 
-field with the vector magnet. For example, we can sweep through current values on the different channels and
-simultaneously measure the actual magnetic field to compare the theory with the actual results.
-
-Author: Maxwell Guerne-Kieferndorf (QZabre)
-        gmaxwell@student.ethz.ch
-
-Date: 15.12.2020
-latest update: 20.01.2021
-"""
+# filename: magnet_control_functions.py
+#
+# Set currents manually, or by specifying a magnetic field vector, or a list of either.
+# Manages measurements of B-field and temperature as well as user inputs and saving data.
+#
+# Author: Maxwell Guerne-Kieferndorf (QZabre)
+#         gmaxwell at student.ethz.ch
+#
+# Date: 15.10.2020
+# latest update: 25.01.2021
 
 ########## Standard library imports ##########
 import numpy as np
@@ -65,7 +61,7 @@ class myMeasThread(threading.Thread):
         period (float): trigger period, should be in the interval (122e-6, 2.79)
                         (default: 0.1)
         averaging (int): number of measured values to average over.
-                            (default: 1)            
+                            (default: 1)
         block_size (int): number of measured values to fetch at once.
                             (default: 1)
         duration (float): duration of measurement series
@@ -135,14 +131,14 @@ class inputThread(threading.Thread):
         # by other threads. Only this thread will append a zero to flags.
         global flags
         c = input("Hit Enter to quit.\n")
-        #make sure there are no concurrency issues
+        # make sure there are no concurrency issues
         threadLock.acquire()
         flags.insert(0, c)
         threadLock.release()
-        
+
         print('exiting...')
-        
-        
+
+
 class timerThread(threading.Thread):
     def __init__(self, threadID, duration):
         """
@@ -162,10 +158,9 @@ class timerThread(threading.Thread):
         while timeDiff < self.countdownDuration:
             print(f'\rtime remaining: {int((self.countdownDuration - timeDiff))//3600} hours, {int((self.countdownDuration - timeDiff))//60 % 60} '
                   f'minutes and {(self.countdownDuration - timeDiff)%60:.0f} seconds', end='', sep='', flush=False)
-            
+
             timeDiff = time() - self.startTime
             sleep(0.096)
-
 
 
 def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2_length4.csv', datadir='config_tests',
@@ -173,7 +168,7 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     """
     Reads current configurations/values from a csv file, depending on the file the configurations need to be multiplied by a current,
     otherwise factor can be 1000 to convert A to mA (or 1 if values are given in mA) and the actual numbers will be set as current
-    on each coil. Optionally, a file with a list of B field vectors can be read in and currents will be computed with the model that 
+    on each coil. Optionally, a file with a list of B field vectors can be read in and currents will be computed with the model that
     we created (for this case, set factor to 1).
 
     Args:
@@ -186,25 +181,27 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         today (bool, optional): today's date will be included in the output directory name. default: True
     """
     global desCurrents
-    
+
     channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
-    
+
     # initialization of all arrays
     # all_curr_steps = np.linspace(start_val, end_val, steps)
     mean_values = []
     stdd_values = []
     expected_fields = []
     all_curr_vals = []
-    
+
     if temp_meas:
         # initialize temperature sensor and measurement routine and start measuring
         arduino = ArduinoUno('COM7')
-        measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
+        measure_temp = threading.Thread(
+            target=arduino.getTemperatureMeasurements, kwargs={
+                'print_meas': False})
         measure_temp.start()
-       
+
     ##########################################################################
     input_list = []
     with open(inpFile, 'r') as f:
@@ -219,27 +216,27 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     for i, row in enumerate(input_list):
         if demagnetize:
-            demagnetizeCoils(channel_1, channel_2, channel_3, current_config = 5000*np.ones(3))
-        
+            demagnetizeCoils(channel_1, channel_2, channel_3, current_config=5000 * np.ones(3))
+
         config = np.array(
-                [float(row[0]), float(row[1]), float(row[2])])
-        
+            [float(row[0]), float(row[1]), float(row[2])])
+
         if BField:
             B_vector = np.array(
                 [float(row[0]), float(row[1]), float(row[2])])
             config = tr.computeCoilCurrents(B_vector)
-            
+
         for k in range(3):
-            desCurrents[k] = config[k]*factor
-        
+            desCurrents[k] = config[k] * factor
+
         setCurrents(channel_1, channel_2, channel_3, desCurrents)
         # Let the field stabilize
         sleep(2)
-        
+
         time_estimate = time_estimate - meas_duration
         print(f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
-                f'minutes and {time_estimate%60:.0f} seconds', end='', sep='', flush=False)
-        
+              f'minutes and {time_estimate%60:.0f} seconds', end='', sep='', flush=False)
+
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
         mean_data, std_data = measure(node, N=10, average=True)
@@ -253,16 +250,16 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
             expected_fields.append(B_vector)
         else:
             # estimate of resulting B field
-            B_expected = tr.computeMagField(config*factor, windings)
+            B_expected = tr.computeMagField(config * factor, windings)
             expected_fields.append(B_expected)
-# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     if temp_meas:
         # save temperature measurements
         arduino.stop = True
         measure_temp.join()
         saveTempData(arduino.data_stack,
-                    directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                    filename_suffix='temp_meas_during_Bsweep')
+                     directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                     filename_suffix='temp_meas_during_Bsweep')
     ##########################################################################
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
@@ -273,31 +270,28 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
     else:
         filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}'
     # saving data section (prepared for plotting)
-    saveDataPoints((np.array(all_curr_vals) ), np.array(mean_values),
+    saveDataPoints((np.array(all_curr_vals)), np.array(mean_values),
                    np.array(stdd_values), np.array(expected_fields), filePath, fileprefix)
-    
+
     if demagnetize:
         demagnetizeCoils(channel_1, channel_2, channel_3, all_curr_vals[-1])
     # end of measurements
     disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
-    
 
 
-
-def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, temp_meas=False):
+def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False, temp_meas=False):
     """
-    set arbitrary currents on each channel.
-    when running without a timer, the current can be changed in a menu and the magnetic field can
-    be measured with the metrolab sensor.
+    Set arbitrary currents on each channel. Includes timed mode, magnetic field and temperature measurements
+    and setting new currents.
 
     Args:
-        config_list (list of (np.array(), length 3)): list of current configs in [mA]. Make sure not to give more than 3!
-        t (int, optional): timer duration list. multiple timers -> different currents will be set for different 
+        config_list (list of (np.array() size 3)): list of current configs in [A]. Make sure not to give more than 3!
+        t (int): timer duration list. multiple timers -> different currents will be set for different
                            amounts of time. If zero, user can decide whether to change the current or deactivate it. Defaults to [].
         subdir (str, optional): Default location where measurements are stored. Defaults to 'default_location'.
-        demagnetize (bool): if true, demagnetization will run every time the field is deactivated.
-        temp_meas (bool): if true, temperature will be measured.
+        demagnetize (bool, optional): if true, demagnetization will run every time the field is deactivated.
+        temp_meas (bool, optional): if true, temperature will be measured.
     """
     global desCurrents
 
@@ -310,8 +304,8 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
     if len(t) == 0 or t[0] == 0:
         channels = config_list[0]
         for i in range(len(channels)):
-            desCurrents[i] = int(channels[i])
-            
+            desCurrents[i] = round(channels[i], 3)
+
         setCurrents(channel_1, channel_2, channel_3, desCurrents)
         # wait until user presses enter
         c1 = '0'
@@ -320,7 +314,8 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
                 '[q] to disable currents\n[c]: get currents\n[r]: Set new currents\n[s]: monitor magnetic field')
             if c1 == 'c':
                 currentsList = getMeasurement(channel_1, channel_2, channel_3)
-                print(f'current 1: {currentsList[0]:.3f}, current 2: {currentsList[1]:.3f}, current 3: {currentsList[2]:.3f}')
+                print(
+                    f'current 1: {currentsList[0]:.3f}, current 2: {currentsList[1]:.3f}, current 3: {currentsList[2]:.3f}')
             elif c1 == 'r':
                 channels[0] = input('Channel 1 current: ')
                 channels[1] = input('Channel 2 current: ')
@@ -328,15 +323,15 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
                 # handle new inputs
                 for i in range(len(channels)):
                     try:
-                        desCurrents[i] = int(channels[i])
-                    except:
+                        desCurrents[i] = round(channels[i], 3)
+                    except BaseException:
                         print(
-                            "non-integer value entered, setting channel {} to 0".format(i+1))
+                            "non-integer value entered, setting channel {} to 0".format(i + 1))
                         desCurrents[i] = 0
 
                 setCurrents(channel_1, channel_2, channel_3, desCurrents)
 ########################### ONLY WITH METROLAB SENSOR ###########################
-#############################################################################################################################
+##########################################################################
             elif c1 == 's':
                 with MetrolabTHM1176Node(period=0.05, range='0.3 T', average=20) as node:
                     test_thread = inputThread(1)
@@ -348,36 +343,38 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
                         # newBMeasurement = np.random.randn((3)) * 10
                         B_magnitude = np.linalg.norm(newBMeasurement)
                         theta = np.degrees(
-                            np.arccos(newBMeasurement[2]/B_magnitude))
+                            np.arccos(newBMeasurement[2] / B_magnitude))
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
                         if flags[0]:
                             print(f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
-                                    f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
-                                    f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
+                                  f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
+                                  f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
                 threadLock.acquire()
                 flags.insert(0, 1)
                 threadLock.release()
-#############################################################################################################################
+##########################################################################
     else:
         # initialize temperature sensor and measurement routine and start measuring
         if temp_meas:
             arduino = ArduinoUno('COM7')
-            measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
+            measure_temp = threading.Thread(
+                target=arduino.getTemperatureMeasurements, kwargs={
+                    'print_meas': False})
             measure_temp.start()
-        
+
         # use only with Metrolab sensor
         try:
             duration = int(input('Duration of measurement (default is 10s): '))
-        except:
+        except BaseException:
             duration = 10
         try:
             period = float(input('Measurement trigger period (default is 0.5s, 0.01-2.2s): '))
-        except:
+        except BaseException:
             period = 0.5
-        
+
         if period < 0.1:
             block_size = 10
         elif period < 0.05:
@@ -387,9 +384,14 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
 
         # print(duration, period)
         global returnDict
-        params = {'name': 'BFieldMeasurement', 'block_size': block_size, 'period': period, 'duration': duration, 'averaging': 3}
+        params = {
+            'name': 'BFieldMeasurement',
+            'block_size': block_size,
+            'period': period,
+            'duration': duration,
+            'averaging': 3}
         faden = myMeasThread(10, **params)
-        
+
         gotoPosition()
         savedir = input('Name of directory where this measurement will be saved: ')
 
@@ -398,7 +400,7 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
         for index, timer in enumerate(t):
             channels = config_list[index]
             for i in range(len(channels)):
-                desCurrents[i] = int(channels[i])
+                desCurrents[i] = round(channels[i], 3)
             # print(desCurrents)
             setCurrents(channel_1, channel_2, channel_3, desCurrents)
             # prevent the connection with the ECB from timing out for long measurements.
@@ -419,49 +421,50 @@ def runCurrents(config_list, t=[], subdir='default_location',demagnetize=False, 
 
         faden.join()
 
-        if temp_meas:  
+        if temp_meas:
             arduino.stop = True
             measure_temp.join()
             saveTempData(arduino.data_stack,
-                                directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                                filename_suffix='temp_meas_timed_const_field')
-        
+                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                         filename_suffix='temp_meas_timed_const_field')
+
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(returnDict, saveLoc, now=True)
-        
+
     # if demagnetize:
     #     demagnetizeCoils()
     disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
-        
 
-def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=False, temp_meas=False):
+
+def generateMagneticField(vectors, t=[], subdir='default_location',
+                          demagnetize=False, temp_meas=False):
     """
-    A magnetic field is generated in an arbitrary direction which is specified by the user. The currents
-    set on the different channels are computed with a linear model. See transformations.py.
+    Set arbitrary currents on each channel. Includes timed mode, magnetic field and temperature measurements
+    and setting new currents.
 
     Args:
-        vectors (list, optional): Nx3 vector of float values, containing N magnetic field vectors
-                                  in spherical coordinates. Order: (B,theta,phi), theta is the polar
-                                  angle and phi is the azimuthal angle.
-        t (list, optional): timer durations for each field. May not be longer than 'vectors'. Defaults to [].
-        subdir (str, optional): Subdirectory where any measurements will be saved. Defaults to 'serious_measurements_for_LUT'.
-        demagnetize (bool, optional): If True, coils will be demagnetized after the magnetic field is deactivated. Defaults to False.
+        vectors (list of (np.array() size 3)): List of magnetic field vectors.
+        t (int): Timer duration list. multiple timers -> different currents will be set for different
+                 amounts of time. If zero, user can use the menu. Defaults to [].
+        subdir (str, optional): Default location where measurements are stored. Defaults to 'default_location'.
+        demagnetize (bool, optional): If true, demagnetization will run every time the field is deactivated.
+        temp_meas (bool, optional): If true, temperature will be measured.
     """
     global desCurrents
-    
+
     channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
-    
+
     if len(t) == 0 or t[0] == 0:
         B_Field = vectors[0]
         B_Field_cartesian = tr.computeMagneticFieldVector(B_Field[0], B_Field[1], B_Field[2])
         channels = tr.computeCoilCurrents(B_Field_cartesian)
         for i in range(len(channels)):
-            desCurrents[i] = int(channels[i])
-            
+            desCurrents[i] = round(channels[i], 3)
+
         print(f'Currents on each channel: ({desCurrents[0]}, {desCurrents[1]}, {desCurrents[2]})')
         setCurrents(channel_1, channel_2, channel_3, desCurrents)
         # wait until user presses q
@@ -470,7 +473,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
             c1 = input('[q] to disable currents\n[c]: Set new currents\n[r]: Set new mag field\n'
                        '[s]: monitor magnetic field (does not work)\n'
                        '[f]: get magnetic field time-resolved measurement series (does not work)\n')
-            
+
             if c1 == 'c':
                 channels = [0, 0, 0]
                 channels[0] = input('Channel 1 current: ')
@@ -479,8 +482,8 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                 # handle new inputs
                 for i in range(len(channels)):
                     try:
-                        desCurrents[i] = int(channels[i])
-                    except:
+                        desCurrents[i] = round(channels[i], 3)
+                    except BaseException:
                         print(
                             f"non-integer value entered, setting channel {i+1} to 0")
                         desCurrents[i] = 0
@@ -495,17 +498,17 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                 # handle new inputs
                 try:
                     magnitude = float(inp1)
-                except:
+                except BaseException:
                     print("non-integer value entered, setting magnitude to 0")
                     magnitude = 0
                 try:
                     theta = float(inp2)
-                except:
+                except BaseException:
                     print("non-integer value entered, setting theta to 0")
                     theta = 0
                 try:
                     phi = float(inp3)
-                except:
+                except BaseException:
                     print("non-integer value entered, setting phi to 0")
                     phi = 0
 
@@ -514,12 +517,12 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                 # copy the computed current values (mA) into the desCurrents list (first 3 positions)
                 # cast to int
                 for i in range(len(I_vector)):
-                    desCurrents[i] = int(I_vector[i])
+                    desCurrents[i] = round(I_vector[i], 3)
                 print(
                     f'Currents on each channel: ({desCurrents[0]}, {desCurrents[1]}, {desCurrents[2]})')
                 setCurrents(channel_1, channel_2, channel_3, desCurrents)
 ########################### ONLY WITH METROLAB SENSOR ###########################
-#############################################################################################################################
+##########################################################################
             elif c1 == 's':
                 with MetrolabTHM1176Node(period=0.05, range='0.3 T', average=20) as node:
                     test_thread = inputThread(1)
@@ -531,35 +534,37 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                         # newBMeasurement = np.random.randn((3)) * 10
                         B_magnitude = np.linalg.norm(newBMeasurement)
                         theta = np.degrees(
-                            np.arccos(newBMeasurement[2]/B_magnitude))
+                            np.arccos(newBMeasurement[2] / B_magnitude))
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
                         if flags[0]:
                             print(f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
-                                    f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
-                                    f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
+                                  f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
+                                  f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
                 threadLock.acquire()
                 flags.insert(0, 1)
                 threadLock.release()
-#############################################################################################################################
+##########################################################################
     else:
         if temp_meas:
             arduino = ArduinoUno('COM7')
-            measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements, kwargs={'print_meas': False})
+            measure_temp = threading.Thread(
+                target=arduino.getTemperatureMeasurements, kwargs={
+                    'print_meas': False})
             measure_temp.start()
-    
+
         # use only with Metrolab sensor
         try:
             duration = int(input('Duration of measurement (default is 10s): '))
-        except:
+        except BaseException:
             duration = 10
         try:
             period = float(input('Measurement trigger period (default is 0.5s, 0.01-2.2s): '))
-        except:
+        except BaseException:
             period = 0.5
-        
+
         if period < 0.1:
             block_size = 10
         elif period < 0.05:
@@ -569,9 +574,14 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
 
         # print(duration, period)
         global returnDict
-        params = {'name': 'BFieldMeasurement', 'block_size': block_size, 'period': period, 'duration': duration, 'averaging': 3}
+        params = {
+            'name': 'BFieldMeasurement',
+            'block_size': block_size,
+            'period': period,
+            'duration': duration,
+            'averaging': 3}
         faden = myMeasThread(10, **params)
-        
+
         gotoPosition()
         savedir = input('Name of directory where this measurement will be saved: ')
 
@@ -583,16 +593,16 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
             channels = tr.computeCoilCurrents(B_Field_cartesian)
             for i in range(len(channels)):
                 desCurrents[i] = int(channels[i])
-            
+
             setCurrents(channel_1, channel_2, channel_3, desCurrents)
-            # prevent the connection with the ECB from timing out for long measurements.
+            # prevent the connection from timing out for long measurements.
             if timer < 500:
-                countdown = timerThread(0,timer)
+                countdown = timerThread(0, timer)
                 countdown.start()
                 sleep(timer)
                 countdown.join()
             else:
-                countdown = timerThread(0,timer)
+                countdown = timerThread(0, timer)
                 countdown.start()
                 starttime = time()
                 while time() - starttime < timer:
@@ -600,29 +610,28 @@ def generateMagneticField(vectors, t=[], subdir='default_location', demagnetize=
                     sleep(pause)
                     getMeasurement(channel_1, channel_2, channel_3)
                 countdown.join()
-                
+
         faden.join()
 
         if temp_meas:
             arduino.stop = True
             measure_temp.join()
             saveTempData(arduino.data_stack,
-                                directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                                filename_suffix='temp_meas_timed_const_fields')
-        
+                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                         filename_suffix='temp_meas_timed_const_fields')
+
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(returnDict, saveLoc, now=True)
-    
+
     # if demagnetize:
     #     demagnetizeCoils()
     disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
 
-    
-    
+
 if __name__ == "__main__":
     params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
-    
+
     # arduino = ArduinoUno('COM7')
     # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     channel_1 = IT6432Connection(1)
@@ -651,7 +660,7 @@ if __name__ == "__main__":
     # sleep(2)
     # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-3000,0,3000])
     # sleep(2)
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5000,5000,5000])
+    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5000, 5000, 5000])
     faden.start()
 
     faden.join()
@@ -664,5 +673,9 @@ if __name__ == "__main__":
     #                         filename_suffix='temp_meas_temp_control_50mT')
 
     closeConnection(channel_1, channel_2, channel_3)
-    
-    strm(returnDict, r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents', 'testing_coil3ramp', now=True)
+
+    strm(
+        returnDict,
+        r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents',
+        'testing_coil3ramp',
+        now=True)

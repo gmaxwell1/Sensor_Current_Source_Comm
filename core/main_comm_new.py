@@ -1,14 +1,13 @@
-"""
-filename: main_comm_new.py
+# filename: main_comm_new.py
+#
+# This code is meant to bundle the communication with the IT6432 current sources.
+#
+# Author: Maxwell Guerne-Kieferndorf (QZabre)
+#         gmaxwell at student.ethz.ch
+#
+# Date: 13.01.2021
+# latest update: 25.01.2021
 
-This code is meant to bundle the communication with the IT6432 current sources.
-There may be some more functions that are necessary in the future
-
-Author: Maxwell Guerne-Kieferndorf (QZabre)
-        gmaxwell@student.ethz.ch
-
-Date: 13.01.2021
-"""
 ########## Standard library imports ##########
 import numpy as np
 import math
@@ -29,39 +28,43 @@ except ModuleNotFoundError:
 
 
 class voltageRamper(threading.Thread):
-    def __init__(self, connection: IT6432Connection, new_voltage, new_current, *args, threadID=0):
+    def __init__(
+        self,
+        connection: IT6432Connection,
+        new_voltage,
+        new_current,
+        *args,
+        step_size=0.01,
+        threadID=0
+    ):
         """
-        [summary]
+        A thread that simply runs the function rampVoltage.
 
         Args:
-            threadID ([type]): [description]
-            connection (IT6432Connection): [description]
-            new_voltage ([type]): [description]
-            new_current ([type]): [description]
+            connection (IT6432Connection): Current source object which is to be controlled
+            new_voltage (float): Target voltage
+            new_current (float): Target current
+            threadID (int, optional): number of thread for keeping track of which threads are
+                                      running. Defaults to 0.
         """
         threading.Thread.__init__(self)
-                    
+
         self.threadID = threadID
         self.connection = connection
         self.targetV = new_voltage
         self.targetI = new_current
+        self.step_size = step_size
         if args[0]:
             self.threadID = connection.channel()
-
 
     def run(self):
 
         try:
-            # print(f'Thread {self.threadID} is starting!')
-            rampVoltageSimple(self.connection, self.targetV, self.targetI)
-                
+            rampVoltage(self.connection, self.targetV, self.targetI, step_size=self.step_size)
+
         except Exception as e:
-            print('There was a problem!')
+            print("There was a problem!")
             print(e)
-        # threadLock.release()
-        # print(f'Thread {self.threadID} is finished!')
-
-
 
 
 def openConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
@@ -84,9 +87,7 @@ def openConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
 
 
 def closeConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
-    """
-    Close the connection with the current sources.
-    """
+    """Close the connection with the current sources."""
     channel_1._write("system:local")
     channel_1.close()
 
@@ -100,21 +101,31 @@ def closeConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None)
 
 
 def disableCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None):
-    """
-    Disable current controllers.
-    """
+    """Disable current controllers."""
+    thread_pool = []
 
-    rampVoltageSimple(channel_1, 0, 0)
+    worker_1 = voltageRamper(channel_1, 0, 0, True)
+    thread_pool.append(worker_1)
 
     if channel_2 is not None:
-        rampVoltageSimple(channel_2, 0, 0)
+        worker_2 = voltageRamper(channel_2, 0, 0, True)
+        thread_pool.append(worker_2)
 
     if channel_3 is not None:
-        rampVoltageSimple(channel_3, 0, 0)
+        worker_3 = voltageRamper(channel_3, 0, 0, True)
+        thread_pool.append(worker_3)
+
+    for thread in thread_pool:
+        thread.start()
+    for thread in thread_pool:
+        thread.join()
 
 
 def setCurrents(
-    channel_1: IT6432Connection, channel_2=None, channel_3=None, desCurrents=[0, 0, 0]
+    channel_1: IT6432Connection,
+    channel_2=None,
+    channel_3=None,
+    desCurrents=[0, 0, 0]
 ):
     """
     Set current values for each channel. Voltage is limited as well to prevent very fast current changes due to inductance.
@@ -126,137 +137,74 @@ def setCurrents(
         desCurrents (list, optional):  list of length 3 containing int values of currents (unit: mA), Defaults to [0,0,0].
     """
     thread_pool = []
-    
+
     signs = np.sign(desCurrents)
 
     idx_1 = channel_1._channel - 1
     current_1 = (
-        signs[idx_1] * desCurrents[idx_1] / 1000
-        if abs(desCurrents[idx_1]) <= 5000
-        else 5.0
+        signs[idx_1] * desCurrents[idx_1]
+        if abs(desCurrents[idx_1]) <= channel_1.currentLim
+        else channel_1.currentLim
     )
-    # meas_voltage = getMeasurement(channel_1, meas_quantity='voltage')[0]
-    # meas_current = getMeasurement(channel_1, meas_quantity='current')[0]
-    # R_est = meas_voltage / meas_current
-    v_set_1 = signs[idx_1] * 0.475 * current_1
-    worker_1 = voltageRamper(channel_1, v_set_1, current_1, True)
-    # rampVoltageSimple(channel_1, v_set_1, current_1)
+    # conservative estimation of coil resistance: 0.48 ohm
+    v_set_1 = signs[idx_1] * 0.48 * current_1
+    worker_1 = voltageRamper(channel_1, v_set_1, current_1, True, step_size=0.05)
+
     thread_pool.append(worker_1)
 
     if channel_2 is not None:
         idx_2 = channel_2._channel - 1
         current_2 = (
-            signs[idx_2] * desCurrents[idx_2] / 1000
-            if abs(desCurrents[idx_2]) <= 5000
-            else 5.0
+            signs[idx_2] * desCurrents[idx_2]
+            if abs(desCurrents[idx_2]) <= channel_2.currentLim
+            else channel_2.currentLim
         )
-        # meas_voltage = getMeasurement(channel_2, meas_quantity='voltage')
-        # meas_current = getMeasurement(channel_2, meas_quantity='current')
-        # R_est = meas_voltage / meas_current
-        v_set_2 = signs[idx_2] * 0.475 * current_2
-        worker_2 = voltageRamper(channel_2, v_set_2, current_2, True)
-        # rampVoltageSimple(channel_2, v_set_2, current_2)
+        # conservative estimation of coil resistance: 0.48 ohm
+        v_set_2 = signs[idx_2] * 0.48 * current_2
+        worker_2 = voltageRamper(channel_2, v_set_2, current_2, True, step_size=0.05)
+
         thread_pool.append(worker_2)
-        
+
     if channel_3 is not None:
         idx_3 = channel_3._channel - 1
         current_3 = (
-            signs[idx_3] * desCurrents[idx_3] / 1000
-            if abs(desCurrents[idx_3]) <= 5000
-            else 5.0
+            signs[idx_3] * desCurrents[idx_3]
+            if abs(desCurrents[idx_3]) <= channel_3.currentLim
+            else channel_3.currentLim
         )
-        # meas_voltage = getMeasurement(channel_3, meas_quantity='voltage')
-        # meas_current = getMeasurement(channel_3, meas_quantity='current')
-        # R_est = meas_voltage / meas_current
-        v_set_3 = signs[idx_3] * 0.475 * current_3
-        worker_3 = voltageRamper(channel_3, v_set_3, current_3, True)
-        # rampVoltageSimple(channel_3, v_set_3, current_3)
+        # conservative estimation of coil resistance: 0.48 ohm
+        v_set_3 = signs[idx_3] * 0.48 * current_3
+        worker_3 = voltageRamper(channel_3, v_set_3, current_3, True, step_size=0.05)
+
         thread_pool.append(worker_3)
-        
+
     for thread in thread_pool:
         thread.start()
     for thread in thread_pool:
         thread.join()
-    
 
-# def rampVoltage(connection: IT6432Connection, new_voltage, new_current):
 
-#     connection.clrOutputProt()
-    
-#     if connection.query('output?') == '0':
-#         connection._write('voltage 0V')
-#         connection._write('output 1')
+def rampVoltage(
+    connection: IT6432Connection,
+    new_voltage,
+    new_current,
+    step_size=0.01
+):
+    """
+    Ramp voltage to a new specified value. The current should not be directly set, due
+    to the load inductance instead it is a limit for the voltage increase. Like this, it
+    is possible to ensure that the current takes the exact desired value without causing
+    the voltage protection to trip.
 
-#     if new_current > connection.currentLim:
-#         new_current = connection.currentLim
-#     elif new_current < 0.002:
-#         new_current = 0.002
-#         new_voltage = 0
-#     if abs(new_voltage) > connection.voltageLim:
-#         new_voltage = connection.voltageLim
-        
-#     # print('desired voltage: ' + str(new_voltage) +'V, desired current: ' + str(new_current) + 'A')
+    Args:
+        connection (IT6432Connection):
+        new_voltage (float): Target voltage
+        new_current (float): Target current
+        step_size (float, optional): Voltage increment. Defaults to 0.01.
+    """
+    logging.basicConfig(filename="voltage_ramp.log", level=logging.DEBUG, force=True)
+    logging.info("now ramping current in channel %s", connection.channel())
 
-#     meas_voltage = getMeasurement(connection, meas_quantity='voltage')[0]
-#     set_voltage = meas_voltage
-#     connection._write(f'voltage {set_voltage:.3f}V')
-
-#     meas_current = getMeasurement(connection, meas_quantity='current')[0]
-#     # print('actual voltage: ' + str(meas_voltage) +'V, actual current: ' + str(meas_current) + 'A')
-#     if new_current - abs(meas_current) >= 0:
-#         connection._write(f'current {new_current}A')
-        
-#     diff_v = new_voltage - meas_voltage
-#     sign = np.sign(diff_v)
-
-#     diff_i = sign * new_current - meas_current
-   
-#     # print('voltage diff: ' + str(diff_v) + ', current diff: ' + str(diff_i))
-#     set_voltage_queue = [set_voltage]
-#     repeat = False
-#     repeat_count = 0
-    
-#     threshold = 0.1 if abs(new_voltage) > 0.15 else 0.01
-
-#     while abs(diff_v) > threshold and abs(diff_i) > threshold and repeat_count < 5:
-#         # change the ramping speed depending on how far from zero we are.
-#         # zero must be approached very slowly...
-#         if abs(set_voltage) <= 0.15:
-#             step = 0.01
-#             sleep(0.05)
-#         elif abs(set_voltage) <= 0.5 or new_voltage <= 0.15:
-#             step = 0.1
-#         else:
-#             step = 0.5
-            
-#         set_voltage = set_voltage + sign * step
-#         # print(f'setting voltage: {set_voltage}')
-#         connection._write(f'voltage {set_voltage}V')
-        
-#         set_voltage_queue.insert(0, set_voltage)
-#         meas_current = getMeasurement(connection, meas_quantity='current')[0]
-#         diff_v = new_voltage - set_voltage
-#         diff_i = sign * new_current - meas_current
-#         # print(f'voltage diff: {diff_v:.3f}, current diff: {diff_i:.3f}')
-        
-#         repeat = abs(set_voltage_queue[0] - set_voltage_queue[1]) < 0.005
-#         if repeat:
-#             repeat_count += 1
-#         else:
-#             repeat_count = 0
-#         # print(f'>>> next round!, {repeat_count}')
-    
-#     # print('done!')
-#     connection._write(f'voltage {new_voltage}V;:current {new_current}A')
-    
-#     if new_current <= 0.002:
-#         connection._write('output 0')
-        
-        
-def rampVoltageSimple(connection: IT6432Connection, new_voltage, new_current):
-    logging.basicConfig(filename='voltage_ramp.log', level=logging.DEBUG, force=True)
-    logging.info('now ramping current in channel %s', connection.channel())
-    
     connection.clrOutputProt()
 
     if connection.query("output?") == "0":
@@ -270,54 +218,77 @@ def rampVoltageSimple(connection: IT6432Connection, new_voltage, new_current):
         new_voltage = 0
     if abs(new_voltage) > connection.voltageLim:
         new_voltage = connection.voltageLim
-    
+
     meas_voltage = getMeasurement(connection, meas_quantity="voltage")[0]
     meas_current = getMeasurement(connection, meas_quantity="current")[0]
 
-    logging.debug(f'actual voltage: {meas_voltage}V, actual current: {meas_current}A')
-    logging.debug(f'target voltage: {new_voltage}V, desired current: {new_current}A')
-    
+    logging.debug(f"actual voltage: {meas_voltage}V, actual current: {meas_current}A")
+    logging.debug(f"target voltage: {new_voltage}V, desired current: {new_current}A")
+
     sign_new = np.sign(new_voltage)
-    
     diff_v = new_voltage - meas_voltage
-    set_voltage = meas_voltage
-    connection._write(f'voltage {set_voltage}')
 
-    
-    if sign_new == 0:
-        while abs(set_voltage) >= 0.02: # abs(diff_v) > threshold and 
-            # change the ramping speed depending on how far from zero we are.
-            # zero must be approached very slowly...
-            set_voltage = set_voltage - np.sign(set_voltage) * 0.01
-            connection._write(f"voltage {set_voltage}V")
-        sleep(0.5)
+    if new_voltage == 0:
+        rampVoltageSimple(connection, meas_voltage, 0, step_size)
         connection._write(f"voltage {new_voltage}V")
-        connection._write(f'current {new_current}A')
+        sleep(0.1)
+        connection._write(f"current {new_current}A")
         connection._write("output 0")
-        
-    else:
-        if new_current - abs(meas_current) >= 0:
-            connection._write(f'current {new_current}A')
 
-        while abs(diff_v) >= 0.02: # abs(diff_v) > threshold and 
-            # change the ramping speed depending on how far from zero we are.
-            # zero must be approached very slowly...
-            set_voltage = set_voltage + np.sign(diff_v) * 0.01
-            connection._write(f"voltage {set_voltage}V")
-            # meas_voltage = getMeasurement(connection, meas_quantity="voltage")[0]
-            diff_v = new_voltage - set_voltage
-            # sleep(0.05)
-        sleep(0.5)
-        connection._write(f'voltage {new_voltage}V')
-        connection._write(f'current {new_current}A')      
+    else:
+        if new_current - abs(meas_current) < 0 and sign_new == np.sign(meas_voltage):
+            print(f'{sign_new} == {np.sign(meas_voltage)}, ')
+            lower_bound = np.sign(new_voltage) * 0.1 if new_voltage > 0.1 else new_voltage
+            rampVoltageSimple(
+                connection, meas_voltage, new_voltage - lower_bound, step_size
+            )
+        elif new_current - abs(meas_current) < 0 and sign_new != np.sign(meas_voltage):
+            rampVoltageSimple(connection, meas_voltage, 0, step_size)
+
+        while not abs(meas_current) < new_current:
+            meas_current = getMeasurement(connection, meas_quantity="current")[0]
+            meas_voltage = getMeasurement(connection, meas_quantity="voltage")[0]
+
+        connection._write(f"current {new_current}A")
+        rampVoltageSimple(connection, meas_voltage, new_voltage, step_size)
+        connection._write(f"voltage {new_voltage}V")
 
     messages = connection.getStatus()
-    if 'QER0' in messages.keys():
-        logging.info(messages['QER0'])
-    if 'QER4' in messages.keys():
-        logging.info(messages['QER4'])
-    if 'OSR1' in messages.keys():
-        logging.info(messages['OSR1'])
+    if "QER0" in messages.keys():
+        logging.info(messages["QER0"] + ", channel: %s", connection.channel())
+    if "QER4" in messages.keys():
+        logging.info(messages["QER4"] + ", channel: %s", connection.channel())
+    if "OSR1" in messages.keys():
+        logging.info(messages["OSR1"] + ", channel: %s", connection.channel())
+        print(f'{messages}')
+        connection.checkError()
+
+
+def rampVoltageSimple(
+    connection: IT6432Connection,
+    set_voltage,
+    new_voltage,
+    step_size=0.01
+):
+    """
+    Helper function to take care of setting the voltage.
+
+    Args:
+        connection (IT6432Connection):
+        set_voltage (float): Voltage that is set right now.
+        new_voltage (float): Target voltage.
+        step_size (float, optional): Defaults to 0.01.
+        threshold (float, optional): Defaults to 0.02.
+    """
+    threshold = 2 * step_size
+    connection._write(f"voltage {set_voltage}")
+    diff_v = new_voltage - set_voltage
+    sign = np.sign(diff_v)
+    print(f'Ramping voltage from {set_voltage}V to {new_voltage}V')
+    while abs(diff_v) >= threshold:
+        set_voltage = set_voltage + sign * step_size
+        connection._write(f"voltage {set_voltage}V")
+        diff_v = new_voltage - set_voltage
 
 
 def getMeasurement(
@@ -325,7 +296,7 @@ def getMeasurement(
     channel_2=None,
     channel_3=None,
     meas_type="",
-    meas_quantity="current",
+    meas_quantity="current"
 ):
     """
     Get DC current/power/voltage values from each channel
@@ -370,7 +341,7 @@ def demagnetizeCoils(
     channel_1: IT6432Connection,
     channel_2=IT6432Connection,
     channel_3=IT6432Connection,
-    current_config=np.array([1000, 1000, 1000]),
+    current_config=np.array([1000, 1000, 1000])
 ):
     """
     Try to eliminate any hysteresis effects by applying a slowly oscillating and decaying electromagnetic field to the coils.
@@ -411,13 +382,13 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
 
-    # print(channel_1.query('output:speed?'))
-    # print(channel_2.query('output:speed?'))
-    # print(channel_3.query('output:speed?'))
+    # print(channel_1.query('init:name tran'))
+    # print(channel_2.query('SYSTem:COMMunicate:PROTocol?'))
+    # print(channel_3.query('SYSTem:COMMunicate:PROTocol?'))
     # r1 = voltageRamper(channel_1,1,2, True)
     # r2 = voltageRamper(channel_2,1,2, True)
     # r3 = voltageRamper(channel_3,1,2, True)
-    
+
     # r1.start()
     # r2.start()
     # r3.start()
@@ -431,18 +402,17 @@ if __name__ == "__main__":
     # setMaxCurrVolt(5.02)
 
     # demagnetizeCoils(channel_1,channel_2,channel_3, [5,5,5])
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[708, 1321, 770])
-    sleep(2)
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[1328, 940, 381])
-    sleep(2)
-    
-    # setCurrents(channel_2, desCurrents=[-621, -400, -439])
-    # sleep(10)
-    # setCurrents(channel_2, desCurrents=[0, 2500, 0])
-    # sleep(10)
-    # setCurrents(channel_2, desCurrents=[0, -3000, 0])
-    # sleep(10)
-    # setCurrents(channel_2, desCurrents=[0, 3500, 0])
+    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5, 5, 5])
+    sleep(10)
+    setCurrents(channel_1, channel_2, channel_3, desCurrents=[1.328, 0.940, 0.381])
+    sleep(10)
+    setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1.228, 0.100, -1.381])
+    sleep(10)
+
+    # channel_1.query('init:name tran')
+    # channel_1._write(':voltage:trigger 1.5')
+    # channel_1._write('*TRG')
+
     # sleep(10)
 
     # volt_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='voltage')

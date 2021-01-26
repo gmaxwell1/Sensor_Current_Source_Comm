@@ -1,3 +1,13 @@
+# filename: it6432_connection.py
+#
+# Class for communication with IT6432 power supplies
+#
+# Author: Maxwell Guerne-Kieferndorf (with QZabre)
+#         gmaxwell at student.ethz.ch
+#
+# Date: 15.01.2021
+# latest update: 25.01.2021
+
 import socket
 from time import time, sleep
 # from qs3.utils import logger
@@ -16,19 +26,43 @@ class GenericError(ErrorBase):
     """
     Any errors that have not yet been encountered.
     """
+
     def __init__(self, code, msg, *args, **kwargs):
         ErrorBase.__init__(self, code, *args, msg=msg, **kwargs)
         # logger.debug(f'{code}: {msg}')
         print(f'{code}: {msg}')
 
-class ParameterOverflow(ErrorBase): pass
-class WrongUnitsForParam(ErrorBase): pass
-class InvalidCommand(ErrorBase): pass
-class ExecutionError(ErrorBase): pass
-class ErrorQueueOverrun(ErrorBase): pass
-class SyntaxErrorSCPI(ErrorBase): pass
-class InvalidCharacter(ErrorBase): pass
-class StringDataError(ErrorBase): pass
+
+class ParameterOverflow(ErrorBase):
+    pass
+
+
+class WrongUnitsForParam(ErrorBase):
+    pass
+
+
+class InvalidCommand(ErrorBase):
+    pass
+
+
+class ExecutionError(ErrorBase):
+    pass
+
+
+class ErrorQueueOverrun(ErrorBase):
+    pass
+
+
+class SyntaxErrorSCPI(ErrorBase):
+    pass
+
+
+class InvalidCharacter(ErrorBase):
+    pass
+
+
+class StringDataError(ErrorBase):
+    pass
 
 
 class IT6432Connection:
@@ -37,16 +71,27 @@ class IT6432Connection:
     The IP address/source port can be changed by reprogramming, although there
     should be no need to do this.
     """
-    
-    ##########  Connection parameters ##########
+    ##########     Connection parameters      ##########
+    ########## (as configured on each device) ##########
     IT6432_ADDRESS1 = "192.168.237.47"
     IT6432_ADDRESS2 = "192.168.237.48"
     IT6432_ADDRESS3 = "192.168.237.49"
-
     IT6432_PORT = 30000
-    
+
     @staticmethod
     def _ErrorFactory(code, msg=''):
+        """
+        Generate Python errors based on IT6432 error codes.
+
+        Args:
+            code (int): The error code
+            msg (str, optional): The error message, only included
+                                 if the error code is unknown.
+                                 Defaults to ''.
+
+        Returns:
+            some subclass of Exception
+        """
         errorClasses = {
             120: ParameterOverflow,
             130: WrongUnitsForParam,
@@ -57,42 +102,40 @@ class IT6432Connection:
             -200: ExecutionError,
             -350: ErrorQueueOverrun
         }
-        
+
         errorClass = None
         if code in errorClasses.keys():
             errorClass = errorClasses[code]
             return errorClass(code)
-        
+
         else:
             return GenericError(code, msg)
-    
+
     def __init__(self, channel: int):
         """
-        create an IT6432 object
-
         Args:
-            channel (int): Only use channels 1,2,3
+            channel (int): Only use channels 1,2,3!
         """
         self.sock = socket.socket()
         self._channel = channel
         self.host = '0.0.0.0'
         self.port = 0
         self.connected = False
-        
+
         self.read_termination = '\n'
         self._chunk_size = 1024
-        
+
         self._timeout = 5.0
-        # current limit
+        # current/voltage limits
         self.MAX_CURR = 5.05
         self.MAX_VOLT = 30
         self.currentLim = 0
         self.voltageLim = 0
-        
+
     #-----------------------------------------------------#
     #------------------ Basic functions ------------------#
     #-----------------------------------------------------#
-    
+
     def connect(self) -> None:
         """
         Connects to the server, i.e. the device
@@ -109,17 +152,13 @@ class IT6432Connection:
             self.connected = True
             self.sock.settimeout(self._timeout)
 
-            # id_info = self.query('*IDN?')
-            # print(id_info.strip('\n'))
-            
             limits = self.getMaxMinOutput()
             self.currentLim = limits[0]
             self.voltageLim = limits[2]
-            
+
         except Exception as exc:
             # logger.debug(f'A problem occured while trying to connect to channel {self._channel}: {exc}')
             print(f'A problem occured while trying to connect to channel {self._channel}: {exc}')
-
 
     def channel(self) -> int:
         """
@@ -127,8 +166,7 @@ class IT6432Connection:
         """
         return self._channel
 
-
-    def _write(self, cmd: str, check_error=True):
+    def _write(self, cmd: str, check_error=True) -> None:
         """
         Writes command as string to the instrument.
         If there is an error, it is saved to the log.
@@ -140,11 +178,10 @@ class IT6432Connection:
         except (ConnectionResetError, ConnectionError, ConnectionRefusedError, ConnectionAbortedError):
             # logger.debug(f'{__name__} error when sending the "{cmd}" command')
             print(f'{__name__} error when sending the "{cmd}" command')
-        
+
         if check_error:
             self.checkError()
-  
-  
+
     def _read(self, chunk_size=None, check_error=True) -> str:
         """
         Reads message sent from the instrument on the connection. One chunk (1024 bytes) at
@@ -169,7 +206,7 @@ class IT6432Connection:
                     break
                 data = self.sock.recv(to_read_len)
                 chunk += data
-                read_len += len(data)				
+                read_len += len(data)
                 term_char = self.read_termination.encode()
                 if term_char in data:
                     term_char_ix = data.index(term_char)
@@ -183,26 +220,26 @@ class IT6432Connection:
             # logger.debug(f'{__name__} Timeout occurred!')
             print(f'{__name__} Timeout occurred! on {self._channel}')
             return ''
-        
+
         try:
             res = chunk.decode('ascii').strip('\n')
         except UnicodeDecodeError:
             res = chunk.decode('uft8').strip('\n')
             # logger.debug(f'{__name__} Non-ascii string received: {res}')
             print(f'{__name__} Non-ascii string received: {res}')
-        
+
         if check_error:
             self.checkError()
-            
+
         return res
 
-    
     def query(self, cmd: str, check_error=True) -> str:
         """
         query the current source with any command
 
         Args:
             cmd (str): an SCPI command
+            check_error (bool):
 
         Returns:
             str: the answer from the device
@@ -214,43 +251,49 @@ class IT6432Connection:
         result = self._read(check_error=False)
         if check_error:
             self.checkError()
-            
+
         return result
 
+    def checkError(self) -> Exception:
+        """
+        Check if an error occurred.
 
-    def checkError(self):
+        Raises:
+            self._ErrorFactory:
+        Returns:
+            Exception: See ErrorFactory
+        """
         error_code, error_message = self.query('system:error?', check_error=False).split(',')
         if int(error_code) != 0:
             # logger.debug(f'{__name__}; error code: {error_code}')
             raise self._ErrorFactory(int(error_code), error_message)
 
-        
-    def clrOutputProt(self):
-        """
-        If output protection was triggered for some reason, clear it.
-        """
+    def idn() -> str:
+        """returns the device identification information."""
+        return self.query('*IDN?').strip('\n')
+
+    def clrOutputProt(self) -> None:
+        """If output protection was triggered for some reason, clear it."""
         self._write('output:protection:clear')
-        
-    def clrErrorQueue(self):
-        """
-        Clear all errors from the instrument error queue
-        """
+
+    def clrErrorQueue(self) -> None:
+        """Clear all errors from the instrument error queue"""
         self._write('system:clear')
-        
-    def saveSetup(self, n):
+
+    def saveSetup(self, n) -> None:
+        """Save current source configuration settings"""
         self._write(f'*SAV {n}')
-        
-    def recallSetup(self, n):
+
+    def recallSetup(self, n) -> None:
+        """Recall a saved current source configuration"""
         self._write(f'*RCL {n}')
 
     def close(self) -> None:
-        """
-        Closes the socket connection
-        """
+        """Closes the socket connection"""
         self.sock.close()
-        
-     
+
     # context manager
+
     def __enter__(self):
         if not self.connected:
             self.connect()
@@ -266,32 +309,31 @@ class IT6432Connection:
     #-------------------------------------------------------#
     #------------------ Utility functions ------------------#
     #-------------------------------------------------------#
-    
+
     def getMaxMinOutput(self):
         """
         Get maximum/minimum current/voltage values for each current channel.
-        
-        Returns: 
-            floats (tuple): maximum/minimum current, maximum/minimum voltage
+
+        Returns:
+            float tuple: maximum, minimum current, maximum, minimum voltage
         """
         max_curr = self.query('current:maxset?')
         max_volt = self.query('voltage:maxset?')
         min_curr = self.query('current:minset?')
         min_volt = self.query('voltage:minset?')
-        
+
         return float(max_curr), float(min_curr), float(max_volt), float(min_volt)
 
-        
     def getStatus(self):
         """
-        gets the current status of the current source by sending a query 
+        gets the current status of the current source by sending a query
         for the different status registers. For low-level debugging.
-        
+
         Returns:
             dict: messages corresponding to any of the bits which were set.
         """
         messages = {}
-        
+
         status = int(self.query('*STB?'))
         # status byte
         if status and 0b10000000:
@@ -304,7 +346,7 @@ class IT6432Connection:
             messages['STB4'] = 'The output queue contains data.'
         if status and 0b00001000:
             messages['STB3'] = 'An enabled questionable event has occurred.'
-        
+
         status = int(self.query('*ESR?'))
         # standard event status
         if status and 0b10000000:
@@ -319,9 +361,9 @@ class IT6432Connection:
             messages['ESR2'] = 'Data of output array is missing.'
         if status and 0b00000001:
             messages['ESR0'] = 'An operation completed.'
-            
+
         status = int(self.query('status:questionable:condition?'))
-        # questionable event status 
+        # questionable event status
         if status and 0b01000000:
             messages['QER6'] = 'Overload current is set.'
         if status and 0b00100000:
@@ -336,7 +378,7 @@ class IT6432Connection:
             messages['QER1'] = 'Over current protection tripped.'
         if status and 0b00000001:
             messages['QER0'] = 'Over voltage protection tripped.'
-            
+
         status = int(self.query('status:operation:condition?'))
         # operation status
         if status and 0b10000000:
@@ -355,9 +397,8 @@ class IT6432Connection:
             messages['OSR1'] = 'There is an Error.'
         if status and 0b00000001:
             messages['OSR0'] = 'Calibrating.'
-        
-        return messages
 
+        return messages
 
     def setMaxCurrVolt(self,  currentLim=5, voltageLim=10, verbose=False):
         """
@@ -382,7 +423,6 @@ class IT6432Connection:
 
         self._write('current:limit:state ON;:voltage:limit:state ON')
         self._write(f'current:limit {self.currentLim};:voltage:limit {self.voltageLim}')
-        
 
     def setOutputSpeed(self, mode='normal', time=1):
         """
@@ -394,15 +434,14 @@ class IT6432Connection:
         """
         modes = ['normal', 'fast', 'time']
         basecmd = 'output:speed'
-        
+
         if not mode in modes:
             return
-        
+
         self._write(f'{basecmd} {mode}')
         if mode == 'time':
             self._write(f'{basecmd}:time {time}')
-            
-            
+
     def outputInfo(self):
         """
         Returns output type (high or low capacitance) and relay mode.
