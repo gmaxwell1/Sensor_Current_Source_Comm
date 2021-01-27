@@ -21,6 +21,7 @@ import sys
 ########## local imports ##########
 try:
     import core.field_current_tr as tr
+    import core.meas_parallelization as p
     from core.main_comm_new import *
     from core.measurement_functions import *
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
@@ -31,6 +32,7 @@ except ModuleNotFoundError:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
     import core.field_current_tr as tr
+    import core.meas_parallelization as p
     from core.main_comm_new import *
     from core.measurement_functions import *
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
@@ -44,127 +46,137 @@ desCurrents = [0, 0, 0]  # in milliamps
 windings = 508  # windings per coil
 resistance = 0.47  # resistance per coil
 
-########## list for storing measured values ##########
-returnDict = {'Bx': 0, 'By': 0, 'Bz': 0, 'time': 0, 'temp': 0}
-# order of data: Bx list, By list, Bz list, time list
-threadLock = threading.Lock()
-flags = [1]
+
+# class measThreadArbitrary(threading.Thread):
+#     """
+#     Start a new thread for measuring magnetic field over time with the Metrolab sensor.
+#     Thread has a name name and multiple member variables.
+
+#     kwargs:
+#         node
+#         name (str, optional): thread name (default: 'MeasureThread')
+#         period (float): trigger period, should be in the interval (122e-6, 2.79)
+#                         (default: 0.1)
+#         averaging (int): number of measured values to average over.
+#                             (default: 1)
+#         block_size (int): number of measured values to fetch at once.
+#                             (default: 1)
+#         duration (float): duration of measurement series
+#                             (default: None)
+#     """
+
+#     def __init__(self, node: MetrolabTHM1176Node, name='MeasureThread', **kwargs):
+#         threading.Thread.__init__(self, name=name)
+#         keys = kwargs.keys()
+
+#         self.sensor_node = node
+
+#     def run(self):
+#         global returnDict
+
+#         threadLock.acquire()
+#         self.sensor_node.stop = False
+#         threadLock.release()
+#         self.sensor_node.start_acquisition()
+        
+#         # Sensor coordinates to preferred coordinates transformation
+#         xValues = np.array(self.sensor_node.data_stack['Bz'])
+#         xValues = -xValues  # np.subtract(-xValues, xOffset)
+
+#         yValues = np.array(self.sensor_node.data_stack['Bx'])
+#         yValues = -yValues
+
+#         zValues = self.sensor_node.data_stack['By']
+
+#         timeline = self.sensor_node.data_stack['Timestamp']
+
+#         t_offset = timeline[0]
+#         for ind in range(len(timeline)):
+#             timeline[ind] = round(timeline[ind] - t_offset, 3)
+
+#         threadLock.acquire()
+#         try:
+#             if (len(self.sensor_node.data_stack['Bx']) != len(
+#                     timeline) or len(self.sensor_node.data_stack['By']) != len(
+#                     timeline) or len(self.sensor_node.data_stack['Bz']) != len(timeline)):
+#                 raise ValueError(
+#                     "length of Bx, By, Bz do not match that of the timeline")
+#             else:
+#                 returnDict = {
+#                     'Bx': xValues.tolist(),
+#                     'By': yValues.tolist(),
+#                     'Bz': zValues.tolist(),
+#                     'temp': self.sensor_node.data_stack['Temperature'],
+#                     'time': timeline}
+#         except Exception as e:
+#             print(f'{__name__}: {e}')
+
+#         threadLock.release()
+
+#         print(f"Finished measuring. {self.name} exiting.")
 
 
-class myMeasThread(threading.Thread):
-    """
-    Start a new thread for measuring magnetic field over time with the Metrolab sensor.
-    Thread has a name name and multiple member variables.
+# class inputThread(threading.Thread):
+#     def __init__(self, threadID):
+#         """
+#         Waits for the user to press enter.
 
-    kwargs:
-        name (str): thread name (default: 'MeasureThread')
-        period (float): trigger period, should be in the interval (122e-6, 2.79)
-                        (default: 0.1)
-        averaging (int): number of measured values to average over.
-                            (default: 1)
-        block_size (int): number of measured values to fetch at once.
-                            (default: 1)
-        duration (float): duration of measurement series
-                            (default: 10)
-    """
+#         Args:
+#             threadID (int): An identifier number assigned to the newly created thread.
+#         """
+#         threading.Thread.__init__(self)
+#         self.threadID = threadID
 
-    def __init__(self, threadID, **kwargs):
-        threading.Thread.__init__(self)
-        keys = kwargs.keys()
+#     def run(self):
+#         # global variable flags is modified and can then be read/modified
+#         # by other threads. Only this thread will append a zero to flags.
+#         global flags
+#         c = input("Hit Enter to quit.\n")
+#         # make sure there are no concurrency issues
+#         threadLock.acquire()
+#         flags.insert(0, c)
+#         threadLock.release()
 
-        self.threadID = threadID
-
-        if 'name' in keys:
-            self.name = kwargs['name']
-        else:
-            self.name = 'MeasureThread'
-
-        if 'period' in keys:
-            self.period = kwargs['period']
-        else:
-            self.period = 0.1
-
-        if 'averaging' in keys:
-            self.averaging = kwargs['averaging']
-        else:
-            self.averaging = 1
-
-        if 'block_size' in keys:
-            self.block_size = kwargs['block_size']
-        else:
-            self.block_size = 1
-
-        if 'duration' in keys:
-            self.duration = kwargs['duration']
-        else:
-            self.duration = 10
-
-    def run(self):
-        global returnDict
-
-        # threadLock.acquire()
-        print("Starting " + self.name)
-
-        try:
-            returnDict = timeResolvedMeasurement(period=self.period, average=self.averaging,
-                                                 block_size=self.block_size, duration=self.duration)
-        except Exception as e:
-            print('There was a problem!')
-            print(e)
-        # threadLock.release()
-        print("Finished measuring. {} exiting.".format(self.name))
+#         print('exiting...')
 
 
-class inputThread(threading.Thread):
-    def __init__(self, threadID):
-        """
-        Waits for the user to press enter.
+# class timerThread(threading.Thread):
+#     def __init__(self, threadID, duration):
+#         """
+#         Serves as a timer in the background.
 
-        Args:
-            threadID (int): An identifier number assigned to the newly created thread.
-        """
-        threading.Thread.__init__(self)
-        self.threadID = threadID
+#         Args:
+#             threadID (int): An identifier number assigned to the newly created thread.
+#             duration (float): timer duration
+#         """
+#         threading.Thread.__init__(self)
+#         self.threadID = threadID
+#         self.startTime = time()
+#         self.countdownDuration = duration
 
-    def run(self):
-        # global variable flags is modified and can then be read/modified
-        # by other threads. Only this thread will append a zero to flags.
-        global flags
-        c = input("Hit Enter to quit.\n")
-        # make sure there are no concurrency issues
-        threadLock.acquire()
-        flags.insert(0, c)
-        threadLock.release()
+#     def run(self):
+#         timeDiff = time() - self.startTime
+#         while timeDiff < self.countdownDuration:
+#             print(
+#                 f'\rtime remaining: {int((self.countdownDuration - timeDiff))//3600} hours, {int((self.countdownDuration - timeDiff))//60 % 60} '
+#                 f'minutes and {(self.countdownDuration - timeDiff)%60:.0f} seconds',
+#                 end='',
+#                 sep='',
+#                 flush=False)
 
-        print('exiting...')
-
-
-class timerThread(threading.Thread):
-    def __init__(self, threadID, duration):
-        """
-        Serves as a timer in the background.
-
-        Args:
-            threadID (int): An identifier number assigned to the newly created thread.
-            duration (float): timer duration
-        """
-        threading.Thread.__init__(self)
-        self.threadID = threadID
-        self.startTime = time()
-        self.countdownDuration = duration
-
-    def run(self):
-        timeDiff = time() - self.startTime
-        while timeDiff < self.countdownDuration:
-            print(f'\rtime remaining: {int((self.countdownDuration - timeDiff))//3600} hours, {int((self.countdownDuration - timeDiff))//60 % 60} '
-                  f'minutes and {(self.countdownDuration - timeDiff)%60:.0f} seconds', end='', sep='', flush=False)
-
-            timeDiff = time() - self.startTime
-            sleep(0.096)
+#             timeDiff = time() - self.startTime
+#             sleep(0.096)
 
 
-def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2_length4.csv', datadir='config_tests',
-              factor=0, BField=False, demagnetize=False, today=True, temp_meas=True):
+def gridSweep(
+        node: MetrolabTHM1176Node,
+        inpFile=r'config_files\configs_numvals2_length4.csv',
+        datadir='config_tests',
+        factor=0,
+        BField=False,
+        demagnetize=False,
+        today=True,
+        temp_meas=True):
     """
     Reads current configurations/values from a csv file, depending on the file the configurations need to be multiplied by a current,
     otherwise factor can be 1000 to convert A to mA (or 1 if values are given in mA) and the actual numbers will be set as current
@@ -234,8 +246,12 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         sleep(2)
 
         time_estimate = time_estimate - meas_duration
-        print(f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
-              f'minutes and {time_estimate%60:.0f} seconds', end='', sep='', flush=False)
+        print(
+            f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
+            f'minutes and {time_estimate%60:.0f} seconds',
+            end='',
+            sep='',
+            flush=False)
 
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
@@ -257,9 +273,10 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         # save temperature measurements
         arduino.stop = True
         measure_temp.join()
-        saveTempData(arduino.data_stack,
-                     directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                     filename_suffix='temp_meas_during_Bsweep')
+        saveTempData(
+            arduino.data_stack,
+            directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+            filename_suffix='temp_meas_during_Bsweep')
     ##########################################################################
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
@@ -334,10 +351,10 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
 ##########################################################################
             elif c1 == 's':
                 with MetrolabTHM1176Node(period=0.05, range='0.3 T', average=20) as node:
-                    test_thread = inputThread(1)
+                    test_thread = p.inputThread(1)
                     test_thread.start()
                     sleep(0.1)
-                    while flags[0]:
+                    while p.flags[0]:
                         newBMeasurement = sensor_to_magnet_coordinates(
                             np.array(node.measureFieldmT()))
                         # newBMeasurement = np.random.randn((3)) * 10
@@ -346,15 +363,16 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
                             np.arccos(newBMeasurement[2] / B_magnitude))
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
-                        if flags[0]:
-                            print(f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
-                                  f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
-                                  f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
+                        if p.flags[0]:
+                            print(
+                                f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
+                                f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
+                                f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
-                threadLock.acquire()
-                flags.insert(0, 1)
-                threadLock.release()
+                p.threadLock.acquire()
+                p.flags.insert(0, 1)
+                p.threadLock.release()
 ##########################################################################
     else:
         # initialize temperature sensor and measurement routine and start measuring
@@ -383,14 +401,13 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
             block_size = 1
 
         # print(duration, period)
-        global returnDict
         params = {
             'name': 'BFieldMeasurement',
             'block_size': block_size,
             'period': period,
             'duration': duration,
             'averaging': 3}
-        faden = myMeasThread(10, **params)
+        faden = p.myMeasThread(10, **params)
 
         gotoPosition()
         savedir = input('Name of directory where this measurement will be saved: ')
@@ -403,14 +420,13 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
                 desCurrents[i] = round(channels[i], 3)
             # print(desCurrents)
             setCurrents(channel_1, channel_2, channel_3, desCurrents)
-            # prevent the connection with the ECB from timing out for long measurements.
             if timer < 500:
-                countdown = timerThread(11, timer)
+                countdown = p.timerThread(11, timer)
                 countdown.start()
                 sleep(timer)
                 countdown.join()
             else:
-                countdown = timerThread(11, timer)
+                countdown = p.timerThread(11, timer)
                 countdown.start()
                 starttime = time()
                 while time() - starttime < timer:
@@ -424,12 +440,13 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
         if temp_meas:
             arduino.stop = True
             measure_temp.join()
-            saveTempData(arduino.data_stack,
-                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                         filename_suffix='temp_meas_timed_const_field')
+            saveTempData(
+                arduino.data_stack,
+                directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                filename_suffix='temp_meas_timed_const_field')
 
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
-        strm(returnDict, saveLoc, now=True)
+        strm(p.return_dict(), saveLoc, now=True)
 
     # if demagnetize:
     #     demagnetizeCoils()
@@ -538,9 +555,10 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
                         if flags[0]:
-                            print(f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
-                                  f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
-                                  f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
+                            print(
+                                f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
+                                f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
+                                f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
                 threadLock.acquire()
@@ -573,7 +591,6 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
             block_size = 1
 
         # print(duration, period)
-        global returnDict
         params = {
             'name': 'BFieldMeasurement',
             'block_size': block_size,
@@ -616,12 +633,13 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
         if temp_meas:
             arduino.stop = True
             measure_temp.join()
-            saveTempData(arduino.data_stack,
-                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                         filename_suffix='temp_meas_timed_const_fields')
+            saveTempData(
+                arduino.data_stack,
+                directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                filename_suffix='temp_meas_timed_const_fields')
 
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
-        strm(returnDict, saveLoc, now=True)
+        strm(p.return_dict, saveLoc, now=True)
 
     # if demagnetize:
     #     demagnetizeCoils()
@@ -639,15 +657,27 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
     # disableCurrents(channel_1, channel_2, channel_3)
+    with MetrolabTHM1176Node(period=period, block_size=block_size, range='auto', average=average, unit='MT') as node:
+        # gotoPosition(node, meas_height=1.5)
+        # node = MetrolabTHM1176Node(period=period, block_size=block_size, range='0.3 T', average=average, unit='MT')
+        thread = threading.Thread(target=node.start_acquisition, name=__name__ + 'dataCollector')
+        thread.start()
+        sleep(duration)
+        faden = myMeasThread(node, **params)
 
-    faden = myMeasThread(1, **params)
+        faden.start()
+        # B_Field_cartesian = tr.computeMagneticFieldVector(B_Field[0], B_Field[1], B_Field[2])
+        B_Field_cartesian = np.array([30, 30, 10])
+        channels = tr.computeCoilCurrents(B_Field_cartesian)
+        setCurrents(channel_1, channel_2, channel_3, desCurrents=channels)
+        sleep(10)
+        node.stop = True
+        setCurrents(channel_1, channel_2, channel_3, desCurrents=[0, 0, 0])
+        sleep(2)
 
-    faden.start()
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1, 1, 0.5])
-    sleep(10)
-    demagnetizeCoils(channel_1, channel_2, channel_3, [-1, 1, 0.5], factor=0.6)
-    faden.join()
-    # disableCurrents(channel_1, channel_2, channel_3)
+        # demagnetizeCoils(channel_1, channel_2, channel_3, [-1, 1, 0.5], factor=0.6)
+        faden.join()
+        # disableCurrents(channel_1, channel_2, channel_3)
 
     # arduino.stop = True
     # measure_temp.join()
@@ -658,7 +688,7 @@ if __name__ == "__main__":
     closeConnection(channel_1, channel_2, channel_3)
 
     strm(
-        returnDict,
+        p.return_dict,
         r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
         'testing_demag_8',
         now=True)
