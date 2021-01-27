@@ -642,29 +642,12 @@ if __name__ == "__main__":
 
     faden = myMeasThread(1, **params)
 
-    # measure_temp.start()
-
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,0,10])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-34,0,100])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,569,500])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[200,0,1000])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,3000,1500])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[0,-222,2000])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[2930,0,2500])
-    # sleep(2)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-3000,0,3000])
-    # sleep(2)
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5000, 5000, 5000])
     faden.start()
-
+    setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1, 1, 0.5])
+    sleep(10)
+    demagnetizeCoils(channel_1, channel_2, channel_3, [-1, 1, 0.5], factor=0.6)
     faden.join()
-    disableCurrents(channel_1, channel_2, channel_3)
+    # disableCurrents(channel_1, channel_2, channel_3)
 
     # arduino.stop = True
     # measure_temp.join()
@@ -676,6 +659,6 @@ if __name__ == "__main__":
 
     strm(
         returnDict,
-        r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_currents',
-        'testing_coil3ramp',
+        r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
+        'testing_demag_8',
         now=True)

@@ -200,7 +200,7 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
     with MetrolabTHM1176Node(period=period, block_size=block_size, range='auto', average=average, unit='MT') as node:
         # gotoPosition(node, meas_height=1.5)
         # node = MetrolabTHM1176Node(period=period, block_size=block_size, range='0.3 T', average=average, unit='MT')
-        thread = threading.Thread(target=node.start_acquisition)
+        thread = threading.Thread(target=node.start_acquisition, name=__name__ + 'dataCollector')
         thread.start()
         sleep(duration)
         node.stop = True

@@ -49,13 +49,14 @@ class voltageRamper(threading.Thread):
         """
         threading.Thread.__init__(self)
 
-        self.threadID = threadID
         self.connection = connection
         self.targetV = new_voltage
         self.targetI = new_current
         self.step_size = step_size
+        self.threadID = threadID
         if args[0]:
             self.threadID = connection.channel()
+        self.name = 'VoltageRamper' + str(self.threadID)
 
     def run(self):
 
@@ -63,8 +64,7 @@ class voltageRamper(threading.Thread):
             rampVoltage(self.connection, self.targetV, self.targetI, step_size=self.step_size)
 
         except Exception as e:
-            print("There was a problem!")
-            print(e)
+            print(f'There was a problem on {self.name}: {e}')
 
 
 def openConnection(channel_1: IT6432Connection, channel_2=None, channel_3=None):
@@ -208,12 +208,11 @@ def rampVoltage(
     connection.clrOutputProt()
 
     if connection.query("output?") == "0":
-        connection._write("voltage 0V")
-        connection._write("output 1")
+        connection._write("voltage 0V;:output 1")
 
     if new_current > connection.currentLim:
         new_current = connection.currentLim
-    elif new_current < 0.002 or new_voltage == 0:
+    if new_current < 0.002 or abs(new_voltage) < 0.001:
         new_current = 0.002
         new_voltage = 0
     if abs(new_voltage) > connection.voltageLim:
@@ -228,30 +227,28 @@ def rampVoltage(
     sign_new = np.sign(new_voltage)
     diff_v = new_voltage - meas_voltage
 
-    if new_voltage == 0:
-        rampVoltageSimple(connection, meas_voltage, 0, step_size)
-        connection._write(f"voltage {new_voltage}V")
-        sleep(0.1)
-        connection._write(f"current {new_current}A")
+    if new_current - abs(meas_current) < 0:
+        intermediate_step = 0.4 * new_current if new_current > 0.01 else 0
+        rampVoltageSimple(connection, meas_voltage, intermediate_step, step_size)
+
+    repeat_count = 0
+    meas_current_queue = [meas_current, 0]
+    while not (abs(meas_current) < new_current or repeat_count >= 5):
+        meas_current_queue.insert(0, getMeasurement(connection, meas_quantity="current")[0])
+        meas_current_queue.pop(2)
+        repeat = abs(meas_current_queue[0] - meas_current_queue[1]) < 0.002
+        if repeat:
+            repeat_count += 1
+        else:
+            repeat_count = 0
+
+    connection._write(f"current {new_current}A")
+    
+    if new_current < 0.002 or abs(new_voltage) < 0.001:
         connection._write("output 0")
-
     else:
-        if new_current - abs(meas_current) < 0 and sign_new == np.sign(meas_voltage):
-            print(f'{sign_new} == {np.sign(meas_voltage)}, ')
-            lower_bound = np.sign(new_voltage) * 0.1 if new_voltage > 0.1 else new_voltage
-            rampVoltageSimple(
-                connection, meas_voltage, new_voltage - lower_bound, step_size
-            )
-        elif new_current - abs(meas_current) < 0 and sign_new != np.sign(meas_voltage):
-            rampVoltageSimple(connection, meas_voltage, 0, step_size)
-
-        while not abs(meas_current) < new_current:
-            meas_current = getMeasurement(connection, meas_quantity="current")[0]
-            meas_voltage = getMeasurement(connection, meas_quantity="voltage")[0]
-
-        connection._write(f"current {new_current}A")
+        meas_voltage = getMeasurement(connection, meas_quantity="voltage")[0]
         rampVoltageSimple(connection, meas_voltage, new_voltage, step_size)
-        connection._write(f"voltage {new_voltage}V")
 
     messages = connection.getStatus()
     if "QER0" in messages.keys():
@@ -260,8 +257,8 @@ def rampVoltage(
         logging.info(messages["QER4"] + ", channel: %s", connection.channel())
     if "OSR1" in messages.keys():
         logging.info(messages["OSR1"] + ", channel: %s", connection.channel())
-        print(f'{messages}')
-        connection.checkError()
+        # print(f'{messages}')
+        # connection.checkError()
 
 
 def rampVoltageSimple(
@@ -284,37 +281,39 @@ def rampVoltageSimple(
     connection._write(f"voltage {set_voltage}")
     diff_v = new_voltage - set_voltage
     sign = np.sign(diff_v)
-    print(f'Ramping voltage from {set_voltage}V to {new_voltage}V')
     while abs(diff_v) >= threshold:
         set_voltage = set_voltage + sign * step_size
         connection._write(f"voltage {set_voltage}V")
         diff_v = new_voltage - set_voltage
+        sign = np.sign(diff_v)
+
+    connection._write(f"voltage {new_voltage}V")
 
 
 def getMeasurement(
     channel_1: IT6432Connection,
     channel_2=None,
     channel_3=None,
-    meas_type="",
-    meas_quantity="current"
+    meas_type=[""],
+    meas_quantity=["current"]
 ):
     """
     Get DC current/power/voltage values from each channel
 
     Returns: a list of all the currents (or an error code)
     """
-    basecmd = "measure:"
+    command = "measure:"
     quantities = ["current", "voltage", "power"]
     types = ["", "acdc", "max", "min"]
-    if not meas_quantity in quantities:
+    if meas_quantity not in quantities:
         meas_quantity = "current"
-    if not meas_type in types:
+    if meas_type not in types:
         meas_type = ""
-
-    command = basecmd + meas_quantity
-    if meas_type != "":
-        command += ":" + meas_type
-    command += "?"
+      
+        command += meas_quantity
+        if meas_type != "":
+            command += ":" + meas_type[0]
+        command += "?"
 
     measured = []
     res = channel_1.query(command)
@@ -339,40 +338,39 @@ def getMeasurement(
 
 def demagnetizeCoils(
     channel_1: IT6432Connection,
-    channel_2=IT6432Connection,
-    channel_3=IT6432Connection,
-    current_config=np.array([1000, 1000, 1000])
+    channel_2: IT6432Connection,
+    channel_3: IT6432Connection,
+    current_config=[1, 1, 1],
+    factor=0.5
 ):
     """
-    Try to eliminate any hysteresis effects by applying a slowly oscillating and decaying electromagnetic field to the coils.
+    Try to eliminate any hysteresis effects by applying a slowly oscillating and decaying
+    voltage to the coils.
 
     Args:
-        - previous_amp (int, optional): the maximum current value (directly) previously applied to coils
+        factor (float): A factor 0<factor<1 to reduce the applied field by.
     """
-    # channel_1._write('output 1')
-    # channel_2._write('output 1')
-    # channel_3._write('output 1')
+    if factor >= 1:
+        factor =0.99
+    tspan = [-factor,factor**2,0]
+    # limits = np.outer(current_config, 1 / ((tspan + 1)**2))
+    # sign = 1
+    # ramp_workers = [None, None, None]
 
-    tspan = np.linspace(0, 5, 5)
-    func1 = current_config[0] * np.exp(-0.2 * tspan)
-    func2 = current_config[1] * np.exp(-0.2 * tspan)
-    func3 = current_config[2] * np.exp(-0.2 * tspan)
-
-    sign = 1
-    # channel_1._write('INITiate:name transient')
-    # channel_2._write('INITiate:name transient')
-    # channel_3._write('INITiate:name transient')
-    # # print(func1)
-    # desCurrents = [0, 0, 0]
-    for k in range(len(tspan)):
-        desCurrents[0] = func1[k]
-        desCurrents[1] = func2[k]
-        desCurrents[2] = func3[k]
-        sign = sign * -1
-        rampVoltage(channel_1, sign * current_config[0], func1[k])
-        rampVoltage(channel_2, sign * current_config[1], func2[k])
-        rampVoltage(channel_3, sign * current_config[2], func3[k])
-    #     sleep(1 - time() * 1 % 1)
+    for item in tspan:
+        setCurrents(channel_1, channel_2, channel_3, item * np.array(current_config))
+        sleep(2)
+    #     sign = sign * -1
+    #     ramp_workers[0] = voltageRamper(channel_1, sign *
+    #                                     current_config[0], current_config[0], True, step_size=0.01)
+    #     ramp_workers[1] = voltageRamper(channel_2, sign *
+    #                                     current_config[1], current_config[1], True, step_size=0.01)
+    #     ramp_workers[2] = voltageRamper(channel_3, sign *
+    #                                     current_config[2], current_config[2], True, step_size=0.01)
+    #     for thread in ramp_workers:
+    #         thread.start()
+    #     for thread in ramp_workers:
+    #         thread.join()
 
 
 ########## test stuff out ##########
@@ -382,32 +380,68 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
 
-    # print(channel_1.query('init:name tran'))
-    # print(channel_2.query('SYSTem:COMMunicate:PROTocol?'))
-    # print(channel_3.query('SYSTem:COMMunicate:PROTocol?'))
-    # r1 = voltageRamper(channel_1,1,2, True)
-    # r2 = voltageRamper(channel_2,1,2, True)
-    # r3 = voltageRamper(channel_3,1,2, True)
+    # demagnetizeCoils(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
+    # setCurrents(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
+    # disableCurrents(channel_1, channel_2, channel_3)
+    # print(channel_1.outputInfo())
+    # channel_1.setMaxCurrVolt(5.01,29.9)
+    # channel_2._write('output:type high')
+    # print(channel_2.outputInfo())
+    # print(channel_3.outputInfo())
+    # channel_3._write('output:type high')
+    # avg = 0
+    # mini = 199
+    # maxi = 0
+    # for n in range(25):
+    #     start = time()
+    #     channel_1.query('SYSTem:COMMunicate:PROTocol?')
+    #     duration = time() - start
+    #     avg = (n * avg + duration)/(n+1)
+    #     mini = duration if duration < mini else mini
+    #     maxi = duration if duration > maxi else maxi
+    #     print(f'\rduration: {duration}', sep='', end='', flush=True)
 
-    # r1.start()
-    # r2.start()
-    # r3.start()
-    # r1.join()
-    # r2.join()
-    # r3.join()
+    # print(f'RTT: mean: {avg*1000:.0f}ms; max: {maxi*1000:.0f}ms; min: {mini*1000:.0f}ms')
+    # avg = 0
+    # mini = 199
+    # maxi = 0
+    # for n in range(25):
+    #     start = time()
+    #     channel_1.query('measure:power?;voltage?')
+    #     duration = time() - start
+    #     avg = (n * avg + duration)/(n+1)
+    #     mini = duration if duration < mini else mini
+    #     maxi = duration if duration > maxi else maxi
+    #     print(f'\rduration: {duration}', sep='', end='', flush=True)
+
+    # print(f'RTT: mean: {avg*1000:.0f}ms; max: {maxi*1000:.0f}ms; min: {mini*1000:.0f}ms')
+
     # print(channel_1.clrOutputProt())
     # print(channel_2.clrOutputProt())
     # print(channel_3.clrOutputProt())
     # getMaxMinOutput()
     # setMaxCurrVolt(5.02)
+    # avg = 0
+    # mini = 199
+    # maxi = 0
+    # for n in range(50):
+    #     start = time()
+    #     channel_1._write('voltage 4V;:output:speed fast')
+    #     duration = time() - start
+    #     avg = (n * avg + duration)/(n+1)
+    #     mini = duration if duration < mini else mini
+    #     maxi = duration if duration > maxi else maxi
+    #     print(f'\rduration: {duration}', sep='', end='', flush=True)
 
-    # demagnetizeCoils(channel_1,channel_2,channel_3, [5,5,5])
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[5, 5, 5])
-    sleep(10)
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[1.328, 0.940, 0.381])
-    sleep(10)
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1.228, 0.100, -1.381])
-    sleep(10)
+    # print(f'RTT: mean: {avg*1000:.0f}ms; max: {maxi*1000:.0f}ms; min: {mini*1000:.0f}ms')
+    closeConnection(channel_1, channel_2, channel_3)
+
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[5, 5, 5])
+    # sleep(10)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[1.328, 0.940, 0.381])
+    # sleep(10)
+    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1.228, 0.100, -1.381])
+    # sleep(10)
 
     # channel_1.query('init:name tran')
     # channel_1._write(':voltage:trigger 1.5')
@@ -415,28 +449,6 @@ if __name__ == "__main__":
 
     # sleep(10)
 
-    # volt_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='voltage')
-    # print(volt_list)
-    # V = 0.4
-    # channel_1._write(f'voltage {V}V;STEP 0.1V;:current 1A')
-    # channel_2._write('INITiate:name transient')
-    # channel_3._write('INITiate:name transient')
-
-    # print(channel_1.query('system:err?'))
-    # print('output 1: ' + channel_1.query('output?'))
-    # print('output 2: ' + channel_2.query('output?'))
-    # print('output 3: ' + channel_3.query('output?'))
-    # stat = channel_1.getStatus()
-    # print(f'status 1: {stat}')
-    # stat = channel_2.getStatus()
-    # print(f'status 2: {stat}')
-    # stat = channel_3.getStatus()
-    # print(f'status 3: {stat}')
     # for i in range(10):
     #     pwr_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='power')
     #     print(f'power on channel 1/2/3: {pwr_list[0]:.3f}W, {pwr_list[1]:.3f}W, {pwr_list[2]:.3f}W')
-
-    disableCurrents(channel_1, channel_2, channel_3)
-    closeConnection(channel_1)
-    closeConnection(channel_2)
-    closeConnection(channel_3)
