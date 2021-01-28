@@ -8,16 +8,17 @@
 # Date: 13.01.2021
 # latest update: 25.01.2021
 
-########## Standard library imports ##########
-import numpy as np
-import math
-from time import time, sleep
-import sys
-from os import getcwd, path
-from pathlib import Path
 import csv
 import logging
+import math
+import sys
 import threading
+from os import getcwd, path
+from pathlib import Path
+from time import sleep, time
+
+########## Standard library imports ##########
+import numpy as np
 
 # current source
 try:
@@ -224,9 +225,6 @@ def rampVoltage(
     logging.debug(f"actual voltage: {meas_voltage}V, actual current: {meas_current}A")
     logging.debug(f"target voltage: {new_voltage}V, desired current: {new_current}A")
 
-    sign_new = np.sign(new_voltage)
-    diff_v = new_voltage - meas_voltage
-
     if new_current - abs(meas_current) < 0:
         intermediate_step = 0.4 * new_current if new_current > 0.01 else 0
         rampVoltageSimple(connection, meas_voltage, intermediate_step, step_size)
@@ -243,7 +241,7 @@ def rampVoltage(
             repeat_count = 0
 
     connection._write(f"current {new_current}A")
-    
+
     if new_current < 0.002 or abs(new_voltage) < 0.001:
         connection._write("output 0")
     else:
@@ -309,7 +307,7 @@ def getMeasurement(
         meas_quantity = "current"
     if meas_type not in types:
         meas_type = ""
-      
+
         command += meas_quantity
         if meas_type != "":
             command += ":" + meas_type[0]
@@ -351,8 +349,8 @@ def demagnetizeCoils(
         factor (float): A factor 0<factor<1 to reduce the applied field by.
     """
     if factor >= 1:
-        factor =0.99
-    tspan = [-factor,factor**2,0]
+        factor = 0.99
+    tspan = [-factor, factor**2, 0]
     # limits = np.outer(current_config, 1 / ((tspan + 1)**2))
     # sign = 1
     # ramp_workers = [None, None, None]
@@ -381,8 +379,8 @@ if __name__ == "__main__":
     openConnection(channel_1, channel_2, channel_3)
 
     # demagnetizeCoils(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
-    # setCurrents(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
-    # disableCurrents(channel_1, channel_2, channel_3)
+    # setCurrents(channel_1, channel_2, channel_3, np.array([-5, 5, 5]))
+    disableCurrents(channel_1, channel_2, channel_3)
     # print(channel_1.outputInfo())
     # channel_1.setMaxCurrVolt(5.01,29.9)
     # channel_2._write('output:type high')
@@ -407,7 +405,7 @@ if __name__ == "__main__":
     # maxi = 0
     # for n in range(25):
     #     start = time()
-    #     channel_1.query('measure:power?;voltage?')
+
     #     duration = time() - start
     #     avg = (n * avg + duration)/(n+1)
     #     mini = duration if duration < mini else mini

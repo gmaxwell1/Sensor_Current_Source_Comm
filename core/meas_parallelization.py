@@ -1,22 +1,24 @@
+import sys
 import threading
+from time import sleep, time
+
+import numpy as np
 
 try:
-    # import core.field_current_tr as tr
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+
     from core.main_comm_new import *
     from core.measurement_functions import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    # from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-    # from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
+
 
 except ModuleNotFoundError:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
-    # import core.field_current_tr as tr
+
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+
     from core.main_comm_new import *
     from core.measurement_functions import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    # from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-    # from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
 
 # order of data: Bx list, By list, Bz list, time list
@@ -42,11 +44,9 @@ class myMeasThread(threading.Thread):
                             (default: 10)
     """
 
-    def __init__(self, threadID, **kwargs):
+    def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self)
         keys = kwargs.keys()
-
-        self.threadID = threadID
 
         if 'name' in keys:
             self.name = kwargs['name']
@@ -73,9 +73,10 @@ class myMeasThread(threading.Thread):
         else:
             self.duration = 10
 
+        # self.returnDict
+
     def run(self):
         global returnDict
-
         # threadLock.acquire()
         print("Starting " + self.name)
 
@@ -87,39 +88,31 @@ class myMeasThread(threading.Thread):
             print(e)
         # threadLock.release()
         print("Finished measuring. {} exiting.".format(self.name))
-        
+
+
 class measThreadArbitrary(threading.Thread):
     """
     Start a new thread for measuring magnetic field over time with the Metrolab sensor.
     Thread has a name name and multiple member variables.
 
     kwargs:
-        node
+        node (MetrolabTHM1176Node): sensor object
         name (str, optional): thread name (default: 'MeasureThread')
-        period (float): trigger period, should be in the interval (122e-6, 2.79)
-                        (default: 0.1)
-        averaging (int): number of measured values to average over.
-                            (default: 1)
-        block_size (int): number of measured values to fetch at once.
-                            (default: 1)
-        duration (float): duration of measurement series
-                            (default: None)
     """
 
     def __init__(self, node: MetrolabTHM1176Node, name='MeasureThread', **kwargs):
         threading.Thread.__init__(self, name=name)
-        keys = kwargs.keys()
 
         self.sensor_node = node
+        # self.returnDict = {}
 
     def run(self):
         global returnDict
-
-        threadLock.acquire()
-        self.sensor_node.stop = False
-        threadLock.release()
+        # threadLock.acquire()
+        # self.sensor_node.stop = False
+        # threadLock.release()
         self.sensor_node.start_acquisition()
-        
+
         # Sensor coordinates to preferred coordinates transformation
         xValues = np.array(self.sensor_node.data_stack['Bz'])
         xValues = -xValues  # np.subtract(-xValues, xOffset)
@@ -209,12 +202,12 @@ class timerThread(threading.Thread):
             sleep(0.096)
 
 
-def stopMeasThread(measThread: measThreadArbitrary):
-    threadLock.acquire()
-    measThread.sensor_node.stop = True
-    threadLock.release()
+# def stopMeasThread(measThread: measThreadArbitrary):
+#     threadLock.acquire()
+#     measThread.sensor_node.stop = True
+#     threadLock.release()
 
 
-def return_dict():
-    global returnDict
-    return returnDict
+# def return_dict():
+#     global returnDict
+#     return returnDict

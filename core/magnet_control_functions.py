@@ -9,35 +9,48 @@
 # Date: 15.10.2020
 # latest update: 25.01.2021
 
+import math
+import sys
+import threading
+from datetime import datetime
+from time import sleep, time
+
+import matplotlib.pyplot as plt
 ########## Standard library imports ##########
 import numpy as np
-import math
-from time import time, sleep
-from datetime import datetime
-import threading
-import matplotlib.pyplot as plt
-import sys
 
 ########## local imports ##########
 try:
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
+                                                               saveTempData)
+    from other_useful_functions.general_functions import ensure_dir_exists
+    from other_useful_functions.general_functions import \
+        save_time_resolved_measurement as strm
+    from other_useful_functions.general_functions import \
+        sensor_to_magnet_coordinates
+
     import core.field_current_tr as tr
     import core.meas_parallelization as p
     from core.main_comm_new import *
     from core.measurement_functions import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-    from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
 except ModuleNotFoundError:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
+                                                               saveTempData)
+    from other_useful_functions.general_functions import ensure_dir_exists
+    from other_useful_functions.general_functions import \
+        save_time_resolved_measurement as strm
+    from other_useful_functions.general_functions import \
+        sensor_to_magnet_coordinates
+
     import core.field_current_tr as tr
     import core.meas_parallelization as p
     from core.main_comm_new import *
     from core.measurement_functions import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-    from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
 ##########  Current parameters ##########
 desCurrents = [0, 0, 0]  # in milliamps
@@ -78,7 +91,7 @@ resistance = 0.47  # resistance per coil
 #         self.sensor_node.stop = False
 #         threadLock.release()
 #         self.sensor_node.start_acquisition()
-        
+
 #         # Sensor coordinates to preferred coordinates transformation
 #         xValues = np.array(self.sensor_node.data_stack['Bz'])
 #         xValues = -xValues  # np.subtract(-xValues, xOffset)
@@ -648,7 +661,6 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
 
 
 if __name__ == "__main__":
-    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
 
     # arduino = ArduinoUno('COM7')
     # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
@@ -657,38 +669,45 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
     # disableCurrents(channel_1, channel_2, channel_3)
-    with MetrolabTHM1176Node(period=period, block_size=block_size, range='auto', average=average, unit='MT') as node:
-        # gotoPosition(node, meas_height=1.5)
-        # node = MetrolabTHM1176Node(period=period, block_size=block_size, range='0.3 T', average=average, unit='MT')
-        thread = threading.Thread(target=node.start_acquisition, name=__name__ + 'dataCollector')
-        thread.start()
-        sleep(duration)
-        faden = myMeasThread(node, **params)
+    # gotoPosition(node, meas_height=1.5)
 
-        faden.start()
-        # B_Field_cartesian = tr.computeMagneticFieldVector(B_Field[0], B_Field[1], B_Field[2])
-        B_Field_cartesian = np.array([30, 30, 10])
+    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
+    BFields = [np.array([30, 30, 10]), np.array([30, 30, 10]), np.array(
+        [30, 30, 10]), np.array([30, 30, 10]), np.array([30, 30, 10])]
+
+    with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+        B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
+
+    i = 16
+
+    for B in BFields:
+        B_Field_cartesian = B - B_rem
         channels = tr.computeCoilCurrents(B_Field_cartesian)
+
+        faden = p.myMeasThread(**params)
+        faden.start()
+
         setCurrents(channel_1, channel_2, channel_3, desCurrents=channels)
         sleep(10)
-        node.stop = True
         setCurrents(channel_1, channel_2, channel_3, desCurrents=[0, 0, 0])
         sleep(2)
-
-        # demagnetizeCoils(channel_1, channel_2, channel_3, [-1, 1, 0.5], factor=0.6)
         faden.join()
-        # disableCurrents(channel_1, channel_2, channel_3)
+
+        strm(
+            p.returnDict,
+            r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
+            f'testing_demag_{i}',
+            now=True)
+
+        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+            B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
+        i += 1
+
+    disableCurrents(channel_1, channel_2, channel_3)
+    closeConnection(channel_1, channel_2, channel_3)
 
     # arduino.stop = True
     # measure_temp.join()
     # saveTempData(arduino.data_stack,
     #                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
     #                         filename_suffix='temp_meas_temp_control_50mT')
-
-    closeConnection(channel_1, channel_2, channel_3)
-
-    strm(
-        p.return_dict,
-        r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
-        'testing_demag_8',
-        now=True)

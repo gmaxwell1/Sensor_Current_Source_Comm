@@ -14,10 +14,18 @@ import serial
 import time
 from datetime import datetime
 import os
+import sys
 import threading
 import numpy as np
 import pandas as pd
-from other_useful_functions.general_functions import ensure_dir_exists
+
+try:
+    from other_useful_functions.general_functions import ensure_dir_exists
+except ModuleNotFoundError:
+    sys.path.insert(1, os.path.join(sys.path[0], ".."))
+    from other_useful_functions.general_functions import ensure_dir_exists
+
+
 
 
 class ArduinoUno(serial.Serial):
@@ -131,39 +139,39 @@ def saveTempData(dataset, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_
 
 if __name__ == "__main__":
     
-    # dataset_name = 'ECB_measurement_during_10mA_gridtest_5Ademagnetize'
-    # duration = 60
+    dataset_name = 'water_temp_at_5A_nocooling'
+    duration = 2000
     
     arduino = ArduinoUno('COM7')
-    # measure = threading.Thread(target=arduino.getTemperatureMeasurements)
-    # measure.start()
-    # time.sleep(duration)
-    # arduino.stop = True
-    # measure.join()
+    measure = threading.Thread(target=arduino.getTemperatureMeasurements)
+    measure.start()
+    time.sleep(duration)
+    arduino.stop = True
+    measure.join()
     
-    # saveTempData(arduino.data_stack, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\2_Misc_Code\Temperature Sensors\ADT7410_temperature_measurements\Measurement_over_time', filename_suffix=dataset_name)
+    saveTempData(arduino.data_stack, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements\water_temp', filename_suffix=dataset_name)
     
-    while True:
-        # A synchronisation string containing the characters tx is sent before each set of measurements
-        tx = arduino.board.readline()
-        if str(tx).strip('b\'\\rn') == 'tx':
-            rawData1 = arduino.board.readline()
-            rawData2 = arduino.board.readline()
-            rawData3 = arduino.board.readline()
-            rawData4 = arduino.board.readline()
+    # while True:
+    #     # A synchronisation string containing the characters tx is sent before each set of measurements
+    #     tx = arduino.board.readline()
+    #     if str(tx).strip('b\'\\rn') == 'tx':
+    #         rawData1 = arduino.board.readline()
+    #         rawData2 = arduino.board.readline()
+    #         rawData3 = arduino.board.readline()
+    #         rawData4 = arduino.board.readline()
         
-            timeStamp = str(rawData1).strip('b\'\\rn')
-            temp1 = str(rawData2).strip('b\'\\rn')
-            temp2 = str(rawData3).strip('b\'\\rn')
-            temp3 = str(rawData4).strip('b\'\\rn')
-            try:
-                timeStamp = float(timeStamp)
-                tempFloat1 = float(temp1) / 128
-                tempFloat2 = float(temp2) / 128
-                tempFloat3 = float(temp3) / 128
-                print(f'\rtime: {timeStamp/1000:.2f} s, Temperature measured on sensor 1: {tempFloat1:.3f} °C,'
-                      f'sensor 2: {tempFloat2:.3f} °C, sensor 3: {tempFloat3:.3f} °C', sep='', end='', flush=True)
-            except:
-                print(rawData_1, rawData_2, rawData_3, rawData_4)
-        else:
-            print(tx)
+    #         timeStamp = str(rawData1).strip('b\'\\rn')
+    #         temp1 = str(rawData2).strip('b\'\\rn')
+    #         temp2 = str(rawData3).strip('b\'\\rn')
+    #         temp3 = str(rawData4).strip('b\'\\rn')
+    #         try:
+    #             timeStamp = float(timeStamp)
+    #             tempFloat1 = float(temp1) / 128
+    #             tempFloat2 = float(temp2) / 128
+    #             tempFloat3 = float(temp3) / 128
+    #             print(f'\rtime: {timeStamp/1000:.2f} s, Temperature measured on sensor 1: {tempFloat1:.3f} °C,'
+    #                   f'sensor 2: {tempFloat2:.3f} °C, sensor 3: {tempFloat3:.3f} °C', sep='', end='', flush=True)
+    #         except:
+    #             print(rawData_1, rawData_2, rawData_3, rawData_4)
+    #     else:
+    #         print(tx)
