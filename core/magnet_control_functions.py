@@ -9,33 +9,46 @@
 # Date: 15.10.2020
 # latest update: 25.01.2021
 
+import math
+import sys
+import threading
+from datetime import datetime
+from time import sleep, time
+
+import matplotlib.pyplot as plt
 ########## Standard library imports ##########
 import numpy as np
-import math
-from time import time, sleep
-from datetime import datetime
-import threading
-import matplotlib.pyplot as plt
-import sys
 
 ########## local imports ##########
 try:
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
+                                                               saveTempData)
+    from other_useful_functions.general_functions import ensure_dir_exists
+    from other_useful_functions.general_functions import \
+        save_time_resolved_measurement as strm
+    from other_useful_functions.general_functions import \
+        sensor_to_magnet_coordinates
+
     import core.field_current_tr as tr
     from core.main_comm_new import *
     from core.measurement_functions import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-    from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
 except ModuleNotFoundError:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
+                                                               saveTempData)
+    from other_useful_functions.general_functions import ensure_dir_exists
+    from other_useful_functions.general_functions import \
+        save_time_resolved_measurement as strm
+    from other_useful_functions.general_functions import \
+        sensor_to_magnet_coordinates
+
     import core.field_current_tr as tr
     from core.main_comm_new import *
     from core.measurement_functions import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    from other_useful_functions.general_functions import save_time_resolved_measurement as strm, ensure_dir_exists, sensor_to_magnet_coordinates
-    from other_useful_functions.arduinoPythonInterface import ArduinoUno, saveTempData
 
 ##########  Current parameters ##########
 desCurrents = [0, 0, 0]  # in milliamps
@@ -156,15 +169,26 @@ class timerThread(threading.Thread):
     def run(self):
         timeDiff = time() - self.startTime
         while timeDiff < self.countdownDuration:
-            print(f'\rtime remaining: {int((self.countdownDuration - timeDiff))//3600} hours, {int((self.countdownDuration - timeDiff))//60 % 60} '
-                  f'minutes and {(self.countdownDuration - timeDiff)%60:.0f} seconds', end='', sep='', flush=False)
+            print(
+                f'\rtime remaining: {int((self.countdownDuration - timeDiff))//3600} hours, {int((self.countdownDuration - timeDiff))//60 % 60} '
+                f'minutes and {(self.countdownDuration - timeDiff)%60:.0f} seconds',
+                end='',
+                sep='',
+                flush=False)
 
             timeDiff = time() - self.startTime
             sleep(0.096)
 
 
-def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2_length4.csv', datadir='config_tests',
-              factor=0, BField=False, demagnetize=False, today=True, temp_meas=True):
+def gridSweep(
+        node: MetrolabTHM1176Node,
+        inpFile=r'config_files\configs_numvals2_length4.csv',
+        datadir='config_tests',
+        factor=0,
+        BField=False,
+        demagnetize=False,
+        today=True,
+        temp_meas=True):
     """
     Reads current configurations/values from a csv file, depending on the file the configurations need to be multiplied by a current,
     otherwise factor can be 1000 to convert A to mA (or 1 if values are given in mA) and the actual numbers will be set as current
@@ -234,8 +258,12 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         sleep(2)
 
         time_estimate = time_estimate - meas_duration
-        print(f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
-              f'minutes and {time_estimate%60:.0f} seconds', end='', sep='', flush=False)
+        print(
+            f'\rmeasurement nr. {i+1}; approx. time remaining: {time_estimate//3600} hours, {time_estimate//60 % 60} '
+            f'minutes and {time_estimate%60:.0f} seconds',
+            end='',
+            sep='',
+            flush=False)
 
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
@@ -257,9 +285,10 @@ def gridSweep(node: MetrolabTHM1176Node, inpFile=r'config_files\configs_numvals2
         # save temperature measurements
         arduino.stop = True
         measure_temp.join()
-        saveTempData(arduino.data_stack,
-                     directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                     filename_suffix='temp_meas_during_Bsweep')
+        saveTempData(
+            arduino.data_stack,
+            directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+            filename_suffix='temp_meas_during_Bsweep')
     ##########################################################################
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
@@ -347,9 +376,10 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
                         if flags[0]:
-                            print(f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
-                                  f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
-                                  f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
+                            print(
+                                f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
+                                f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
+                                f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
                 threadLock.acquire()
@@ -424,9 +454,10 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
         if temp_meas:
             arduino.stop = True
             measure_temp.join()
-            saveTempData(arduino.data_stack,
-                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                         filename_suffix='temp_meas_timed_const_field')
+            saveTempData(
+                arduino.data_stack,
+                directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                filename_suffix='temp_meas_timed_const_field')
 
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(returnDict, saveLoc, now=True)
@@ -538,9 +569,10 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
                         if flags[0]:
-                            print(f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
-                                  f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
-                                  f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
+                            print(
+                                f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
+                                f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
+                                f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
                 threadLock.acquire()
@@ -616,9 +648,10 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
         if temp_meas:
             arduino.stop = True
             measure_temp.join()
-            saveTempData(arduino.data_stack,
-                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                         filename_suffix='temp_meas_timed_const_fields')
+            saveTempData(
+                arduino.data_stack,
+                directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+                filename_suffix='temp_meas_timed_const_fields')
 
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(returnDict, saveLoc, now=True)
@@ -630,35 +663,44 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
 
 
 if __name__ == "__main__":
-    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
-
-    # arduino = ArduinoUno('COM7')
-    # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
     # disableCurrents(channel_1, channel_2, channel_3)
+    # gotoPosition(node, meas_height=1.5)
 
-    faden = myMeasThread(1, **params)
+    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
+    BFields = [np.array([30, 30, 10]), np.array([30, 30, 10]), np.array(
+        [30, 30, 10]), np.array([30, 30, 10]), np.array([30, 30, 10])]
 
-    faden.start()
-    setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1, 1, 0.5])
-    sleep(10)
-    demagnetizeCoils(channel_1, channel_2, channel_3, [-1, 1, 0.5], factor=0.6)
-    faden.join()
-    # disableCurrents(channel_1, channel_2, channel_3)
+    with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+        B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
 
-    # arduino.stop = True
-    # measure_temp.join()
-    # saveTempData(arduino.data_stack,
-    #                         directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-    #                         filename_suffix='temp_meas_temp_control_50mT')
+    i = 16
 
+    for B in BFields:
+        B_Field_cartesian = B - B_rem
+        channels = tr.computeCoilCurrents(B_Field_cartesian)
+
+        faden = myMeasThread(**params)
+        faden.start()
+
+        setCurrents(channel_1, channel_2, channel_3, desCurrents=channels)
+        sleep(10)
+        setCurrents(channel_1, channel_2, channel_3, desCurrents=[0, 0, 0])
+        sleep(2)
+        faden.join()
+
+        strm(
+            returnDict,
+            r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
+            f'testing_demag_{i}',
+            now=True)
+
+        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+            B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
+        i += 1
+
+    disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
-
-    strm(
-        returnDict,
-        r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
-        'testing_demag_8',
-        now=True)
