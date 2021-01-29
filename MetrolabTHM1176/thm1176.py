@@ -23,12 +23,13 @@
 # started mid-October 2020
 # latest update: 20.01.2021
 
-import usbtmc
-import numpy as np
 import logging
-from time import sleep, time
 import threading
+from time import sleep, time
+
 import matplotlib.pyplot as plt
+import numpy as np
+import usbtmc
 
 
 class MetrolabTHM1176Node(object):
@@ -52,7 +53,7 @@ class MetrolabTHM1176Node(object):
     # Order matters, this is linked to the fetch command that is sent to retrived data
     fetch_kinds = ['Bx', 'By', 'Bz', 'Timestamp', 'Temperature']
 
-    defaults = {'block_size': 10, 'period': 0.1, 'range': 'auto',
+    defaults = {'block_size': 5, 'period': 0.1, 'range': '0.1 T',
                 'average': 1, 'unit': 'MT', 'n_digits': 5}
 
     def __init__(self, *args, **kwargs):
@@ -154,8 +155,10 @@ class MetrolabTHM1176Node(object):
             res = self.sensor.ask(self.fetch_cmd)
             self.parse_ascii_responses('fetch', res)
 
-            self.data_stack = {key: np.hstack((self.data_stack[key], self.last_reading[key])) for key in
-                               self.fetch_kinds}
+            self.data_stack = {
+                key: np.hstack(
+                    (self.data_stack[key],
+                     self.last_reading[key])) for key in self.fetch_kinds}
             # print(time() - t0)
 
         self.stop_acquisition()
@@ -243,10 +246,10 @@ class MetrolabTHM1176Node(object):
             list of 3 floats: [Bx, By, Bz] (the measured magnetic field amplitudes)
         """
         Bx = float(self.sensor.ask(
-            ':measure:scalar:flux:x? 0.01T,' + str(self.n_digits)).strip('MT'))
-        By = float(self.sensor.ask(':measure:y? 0.01T,' +
+            ':measure:scalar:flux:x? 0.05T,' + str(self.n_digits)).strip('MT'))
+        By = float(self.sensor.ask(':measure:y? 0.05T,' +
                                    str(self.n_digits)).strip('MT'))
-        Bz = float(self.sensor.ask(':measure:z? 0.01T,' +
+        Bz = float(self.sensor.ask(':measure:z? 0.05T,' +
                                    str(self.n_digits)).strip('MT'))
 
         return [Bx, By, Bz]
@@ -263,19 +266,19 @@ class MetrolabTHM1176Node(object):
 
         Returns:
         """
-        ret = self.sensor.ask(":READ:array:x? " + str(num_meas) + ", 0.01T,5")
+        ret = self.sensor.ask(":READ:array:x? " + str(num_meas) + ", 0.05T,5")
         Bx_str = ret.split(",")
         Bx = []
         for val in Bx_str:
             Bx.append(float(val.strip('MT')))
 
-        ret = self.sensor.ask(":READ:array:y? " + str(num_meas) + ", 0.01T,5")
+        ret = self.sensor.ask(":READ:array:y? " + str(num_meas) + ", 0.05T,5")
         By_str = ret.split(",")
         By = []
         for val in By_str:
             By.append(float(val.strip('MT')))
 
-        ret = self.sensor.ask(":READ:array:z? " + str(num_meas) + ", 0.01T,5")
+        ret = self.sensor.ask(":READ:array:z? " + str(num_meas) + ", 0.05T,5")
         Bz_str = ret.split(",")
         Bz = []
         for val in Bz_str:

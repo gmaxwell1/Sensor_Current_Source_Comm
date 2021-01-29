@@ -10,18 +10,21 @@
 # Date: 09.10.2020
 # latest update: 22.01.2021
 
+import csv
+import math
+import os
+from datetime import datetime
+from time import sleep, time
+
 ########## Standard library imports ##########
 import numpy as np
-import math
-from time import time, sleep
-import csv
-import os
 from scipy import stats
 
 ########## local imports ##########
-from core.magnet_control_functions import *
-from core.measurement_functions import gotoPosition
 import other_useful_functions.feedback as fb
+from core.magnet_control_functions import (generateMagneticField, gridSweep,
+                                           runCurrents)
+from core.measurement_functions import gotoPosition
 from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 

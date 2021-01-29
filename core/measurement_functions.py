@@ -10,33 +10,42 @@
 # Date: 20.10.2020
 # latest update: 08.01.2021
 
-########## Standard library imports ##########
-import numpy as np
+import os
+import threading
+from datetime import datetime
 # import serial
 from time import sleep, time
+
 import matplotlib.pyplot as plt
-import os
+########## Standard library imports ##########
+import numpy as np
 import pandas as pd
-from datetime import datetime
-import threading
 
 ########## local imports ##########
-from conexCC.conexcc_class import *
 try:
     import core.field_current_tr as tr
 except ModuleNotFoundError:
-    sys.path.insert(1, path.join(sys.path[0], '..'))
-    import core.field_current_tr as tr
+    pass
 finally:
-    from other_useful_functions.general_functions import ensure_dir_exists, sensor_to_magnet_coordinates
+    import sys
+    sys.path.insert(1, os.path.join(sys.path[0], '..'))
+    from conexCC.conexcc_class import *
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from other_useful_functions.general_functions import (
+        ensure_dir_exists, sensor_to_magnet_coordinates)
 
+    import core.field_current_tr as tr
 
 ########## sensor cube/Conexcc ports ##########
 # port_sensor = 'COM3'
 z_COM_port = 'COM6'  # z-coordinate controller
 y_COM_port = 'COM5'
 x_COM_port = 'COM4'
+
+
+class MeasurementException(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args)
 
 
 def newMeasurementFolder(defaultDataDir='data_sets', sub_dir_base='z_field_meas', verbose=False):
@@ -163,8 +172,8 @@ def measure(node: MetrolabTHM1176Node, N=10, max_num_retrials=5, average=False):
         meas_data = sensor_to_magnet_coordinates(meas_data)
     # if it was not possible to obtain valid measurement results after
     # max_num_retrials, raise MeasurementError, too
-    except UnboundLocalError:
-        raise MeasurementError
+    except BaseException:
+        raise MeasurementException()
 
     if average:
         # compute the mean and std from raw data for each sensor
@@ -294,4 +303,4 @@ def saveDataPoints(I, mean_data, std_data, expected_fields,
 
 if __name__ == '__main__':
 
-    gotoPosition(20, 0, 20)
+    gotoPosition(1.3)

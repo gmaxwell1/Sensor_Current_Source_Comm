@@ -9,7 +9,8 @@
 # latest update: 25.01.2021
 
 import socket
-from time import time, sleep
+from time import sleep, time
+
 # from qs3.utils import logger
 
 
@@ -30,7 +31,7 @@ class GenericError(ErrorBase):
     def __init__(self, code, msg, *args, **kwargs):
         ErrorBase.__init__(self, code, *args, msg=msg, **kwargs)
         # logger.debug(f'{code}: {msg}')
-        print(f'{code}: {msg}')
+        print(f'\n{code}: {msg}')
 
 
 class ParameterOverflow(ErrorBase):
@@ -194,7 +195,6 @@ class IT6432Connection:
         Returns:
             str: the decoded (from ascii) received message
         """
-        term_char_detected = False
         read_len = 0
         chunk = bytes()
         _chunk_size = chunk_size if chunk_size is not None else self._chunk_size
@@ -211,7 +211,6 @@ class IT6432Connection:
                 if term_char in data:
                     term_char_ix = data.index(term_char)
                     read_len = term_char_ix + 1
-                    term_char_detected = True
                     break
                 else:
                     pass
@@ -268,7 +267,7 @@ class IT6432Connection:
             # logger.debug(f'{__name__}; error code: {error_code}')
             raise self._ErrorFactory(int(error_code), error_message)
 
-    def idn() -> str:
+    def idn(self) -> str:
         """returns the device identification information."""
         return self.query('*IDN?').strip('\n')
 
@@ -435,7 +434,7 @@ class IT6432Connection:
         modes = ['normal', 'fast', 'time']
         basecmd = 'output:speed'
 
-        if not mode in modes:
+        if mode not in modes:
             return
 
         self._write(f'{basecmd} {mode}')

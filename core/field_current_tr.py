@@ -11,13 +11,13 @@
 
 ########## Standard library imports ##########
 import math
+import pickle
+
+import joblib
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
-import pickle
-import joblib
-
+from sklearn.preprocessing import PolynomialFeatures
 
 # Lookup table for current/magnetic field values
 # LookupTable = {}
@@ -34,6 +34,7 @@ import joblib
 #         unitCurrents = np.around(currentConfigs[i]/20, 3)
 
 #         LookupTable[f'direction {i+1}'] = (unit.tolist(), unitCurrents.tolist())
+
 
 def read_fitting_parameters(filepath):
     """Extract fitting paramters A from file."""
@@ -145,25 +146,7 @@ def computeCoilCurrents(B_fieldVector, windings=508, resistance=0.5):
     Returns:
         Vector of 3 current values, as a np.array, units: [A]
     """
-    # deprecated linear model
-    # actMatrix = np.zeros((3, 3))
-    # These values are still just estimates in the current config. But based on measurements. (06.11.) ~1.5mm above poles
-    # dB_x/dI_{1,2,3}
-    # actMatrix[0, 0] = 44
-    # actMatrix[0, 1] = -14
-    # actMatrix[0, 2] = -34
-    # dB_y/dI_{1,2,3}
-    # actMatrix[1, 0] = -35
-    # actMatrix[1, 1] = 50
-    # actMatrix[1, 2] = -13
-    # dB_z/dI_{1,2,3}
-    # actMatrix[2, 0] = 29
-    # actMatrix[2, 1] = -5
-    # actMatrix[2, 2] = -13
-    # actMatrix_inverse = np.linalg.inv(actMatrix)
-    # print('Inverse actuation matrix: \n', act_matrix_inverse)
-
-    filename = r'fitting_parameters\model_poly3_newSensorData_B2I.sav'
+    filename = r'fitting_parameters\model_poly3_latest_B2I.sav'
     # load the model from disk
     [loaded_model, loaded_poly] = pickle.load(open(filename, 'rb'))
     # preprocess test vectors, st. they have correct shape for model
@@ -188,23 +171,7 @@ def computeMagField(currVector, windings=508):
     Returns:
         Vector of 3 B field components (Bx,By,Bz), as a np.array, units: [mT]
     """
-    # actMatrix = np.zeros((3, 3))
-    # actMatrix = actMatrix * windings
-    # dB_x/dI_{1,2,3}
-    # actMatrix[0, 0] = 44
-    # actMatrix[0, 1] = -14
-    # actMatrix[0, 2] = -34
-    # dB_y/dI_{1,2,3}
-    # actMatrix[1, 0] = -35
-    # actMatrix[1, 1] = 50
-    # actMatrix[1, 2] = -13
-    # dB_z/dI_{1,2,3}
-    # actMatrix[2, 0] = 29
-    # actMatrix[2, 1] = -5
-    # actMatrix[2, 2] = -13 # z-field is positive when I3 is negative and
-    # increases when I3 decreases
-
-    filename = r'fitting_parameters\model_poly3_newSensorData_I2B.sav'
+    filename = r'fitting_parameters\model_poly3_latest_I2B.sav'
 
     # load the model from disk
     [loaded_model, loaded_poly] = pickle.load(open(filename, 'rb'))
@@ -281,7 +248,8 @@ if __name__ == '__main__':
     # print('Lookup table:')
     # for key in LookupTable:
     #     print(f'{key} = {LookupTable[key]}')
-    B1 = computeMagneticFieldVector(theta=0, phi=0, magnitude=50)
+    # B1 = computeMagneticFieldVector(theta=0, phi=0, magnitude=50)
+    B1 = np.array([13, 22, 69])
     print(f'Bx = {B1[0]}mT, By = {B1[1]}mT, Bz = {B1[2]}mT')
     currents = computeCoilCurrents(B1)
     print(f'I1 = {currents[0]}A, I2 = {currents[1]}A, I3 = {currents[2]}A')
