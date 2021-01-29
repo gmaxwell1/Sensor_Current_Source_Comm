@@ -28,7 +28,7 @@ except ModuleNotFoundError:
 finally:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
-    
+
     from IT6432.it6432connection import IT6432Connection
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
     from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
@@ -578,40 +578,42 @@ if __name__ == "__main__":
         # workers[2] = threading.Thread(target=cc_3.piControl,
         #                               name=f'currentController_3',
         #                               args=[True, False])
-        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
-            measureB = threading.Thread(target=node.start_acquisition, name='Meas_Thread')
-            measureB.start()
-            # for worker in workers:
-            #     worker.start()
-            setCurrents(channel_1, channel_2, channel_3, channels)
-            starttime = time()  # = 0
-            while time() - starttime < 240:
-                pass
-            demagnetizeCoils(channel_1, channel_2, channel_3, channels, 0.5)
-            # cc_1.control_enable = False
-            # cc_2.control_enable = False
-            # cc_3.control_enable = False
-            node.stop = True
+        # with
+        # as node:
+        node = MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT')
+        measureB = threading.Thread(target=node.start_acquisition, name='Meas_Thread')
+        measureB.start()
+        # for worker in workers:
+        #     worker.start()
+        setCurrents(channel_1, channel_2, channel_3, channels)
+        starttime = time()  # = 0
+        while time() - starttime < 60:
+            pass
+        demagnetizeCoils(channel_1, channel_2, channel_3, channels, 0.6)
+        # cc_1.control_enable = False
+        # cc_2.control_enable = False
+        # cc_3.control_enable = False
+        node.stop = True
 
-            # for worker in workers:
-            #     worker.join()
-            measureB.join()
-            try:
-                xValues = -np.array(node.data_stack['Bz'])
-                yValues = -np.array(node.data_stack['Bx'])
-                zValues = node.data_stack['By']
+        # for worker in workers:
+        #     worker.join()
+        measureB.join()
+        try:
+            xValues = -np.array(node.data_stack['Bz'])
+            yValues = -np.array(node.data_stack['Bx'])
+            zValues = node.data_stack['By']
 
-                timeline = node.data_stack['Timestamp']
-                t_offset = timeline[0]
-                for ind in range(len(timeline)):
-                    timeline[ind] = round(timeline[ind] - t_offset, 3)
-                returnDict = {'Bx': xValues.tolist(),
-                              'By': yValues.tolist(),
-                              'Bz': zValues.tolist(),
-                              'temp': node.data_stack['Temperature'],
-                              'time': timeline}
-            except Exception as e:
-                print(f'{__name__}: {e}')
+            timeline = node.data_stack['Timestamp']
+            t_offset = timeline[0]
+            for ind in range(len(timeline)):
+                timeline[ind] = round(timeline[ind] - t_offset, 3)
+            returnDict = {'Bx': xValues.tolist(),
+                          'By': yValues.tolist(),
+                          'Bz': zValues.tolist(),
+                          'temp': node.data_stack['Temperature'],
+                          'time': timeline}
+        except Exception as e:
+            print(f'{__name__}: {e}')
 
         strm(
             returnDict,

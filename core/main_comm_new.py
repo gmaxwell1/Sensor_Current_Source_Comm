@@ -27,7 +27,7 @@ except ModuleNotFoundError:
     sys.path.insert(1, path.join(sys.path[0], ".."))
     from IT6432.it6432connection import IT6432Connection
 
-    from core.current_control import currentController
+    from core.current_control import currControlThread, currentController
 
 
 class voltageRamper(threading.Thread):
@@ -367,10 +367,40 @@ def demagnetizeCoils(
     """
     if factor >= 1:
         factor = 0.99
-    # tspan = [-factor, 0]
+    steps = np.array([0, 1, 2, 3, 4, 5, 6])
+    bounds = np.outer(current_config, factor * np.exp(-steps))
 
-    # setCurrents(channel_1, channel_2, channel_3, -factor * np.array(current_config))
-    sleep(2)
+    thread_pool = []
+
+    controller_1 = currentController(channel_1, current_config[0], prop_gain=0.045)
+    thread_pool.append(
+        threading.Thread(target=controller_1.piControl,
+                         name='currentController_1',
+                         args=[True, False, False]))
+    controller_2 = currentController(channel_2, current_config[1], prop_gain=0.045)
+    thread_pool.append(
+        threading.Thread(target=controller_2.piControl,
+                         name='currentController_2',
+                         args=[True, False, False]))
+    controller_3 = currentController(channel_3, current_config[2], prop_gain=0.045)
+    thread_pool.append(
+        threading.Thread(target=controller_3.piControl,
+                         name='currentController_3',
+                         args=[True, False, False]))
+    for thread in thread_pool:
+        thread.start()
+
+    sign = -1
+
+    for i in range(len(bounds)):
+        controller_1.updateSetCurrent(sign * bounds[0, i])
+        controller_2.updateSetCurrent(sign * bounds[1, i])
+        controller_3.updateSetCurrent(sign * bounds[2, i])
+
+        sign *= -1
+        # setCurrents(channel_1, channel_2, channel_3, -factor * np.array(current_config))
+    for thread in thread_pool:
+        thread.join()
     disableCurrents(channel_1, channel_2, channel_3)
 
 
@@ -381,76 +411,8 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
 
-    # demagnetizeCoils(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
+    demagnetizeCoils(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
     # setCurrents(channel_1, channel_2, channel_3, np.array([-5, 5, 5]))
-    disableCurrents(channel_1, channel_2, channel_3)
-    # print(channel_1.outputInfo())
-    # channel_1.setMaxCurrVolt(5.01,29.9)
-    # channel_2._write('output:type high')
-    # print(channel_2.outputInfo())
-    # print(channel_3.outputInfo())
-    # channel_3._write('output:type high')
-    # avg = 0
-    # mini = 199
-    # maxi = 0
-    # for n in range(25):
-    #     start = time()
-    #     channel_1.query('SYSTem:COMMunicate:PROTocol?')
-    #     duration = time() - start
-    #     avg = (n * avg + duration)/(n+1)
-    #     mini = duration if duration < mini else mini
-    #     maxi = duration if duration > maxi else maxi
-    #     print(f'\rduration: {duration}', sep='', end='', flush=True)
+    # disableCurrents(channel_1, channel_2, channel_3)
 
-    # print(f'RTT: mean: {avg*1000:.0f}ms; max: {maxi*1000:.0f}ms; min: {mini*1000:.0f}ms')
-    # avg = 0
-    # mini = 199
-    # maxi = 0
-    # for n in range(25):
-    #     start = time()
-
-    #     duration = time() - start
-    #     avg = (n * avg + duration)/(n+1)
-    #     mini = duration if duration < mini else mini
-    #     maxi = duration if duration > maxi else maxi
-    #     print(f'\rduration: {duration}', sep='', end='', flush=True)
-
-    # print(f'RTT: mean: {avg*1000:.0f}ms; max: {maxi*1000:.0f}ms; min: {mini*1000:.0f}ms')
-
-    # print(channel_1.clrOutputProt())
-    # print(channel_2.clrOutputProt())
-    # print(channel_3.clrOutputProt())
-    # getMaxMinOutput()
-    # setMaxCurrVolt(5.02)
-    # avg = 0
-    # mini = 199
-    # maxi = 0
-    # for n in range(50):
-    #     start = time()
-    #     channel_1._write('voltage 4V;:output:speed fast')
-    #     duration = time() - start
-    #     avg = (n * avg + duration)/(n+1)
-    #     mini = duration if duration < mini else mini
-    #     maxi = duration if duration > maxi else maxi
-    #     print(f'\rduration: {duration}', sep='', end='', flush=True)
-
-    # print(f'RTT: mean: {avg*1000:.0f}ms; max: {maxi*1000:.0f}ms; min: {mini*1000:.0f}ms')
     closeConnection(channel_1, channel_2, channel_3)
-
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[5, 5, 5])
-    # sleep(10)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[1.328, 0.940, 0.381])
-    # sleep(10)
-    # setCurrents(channel_1, channel_2, channel_3, desCurrents=[-1.228, 0.100, -1.381])
-    # sleep(10)
-
-    # channel_1.query('init:name tran')
-    # channel_1._write(':voltage:trigger 1.5')
-    # channel_1._write('*TRG')
-
-    # sleep(10)
-
-    # for i in range(10):
-    #     pwr_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='power')
-    # print(f'power on channel 1/2/3: {pwr_list[0]:.3f}W, {pwr_list[1]:.3f}W,
-    # {pwr_list[2]:.3f}W')

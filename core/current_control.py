@@ -30,12 +30,11 @@ class currentController(object):
 
         Args:
             connection (IT6432Connection): Current source object which is to be controlled
-            new_voltage (float): Target voltage
-            new_current (float): Target current
-            threadID (int, optional): number of thread for keeping track of which threads are
-                                      running. Defaults to 0.
+            current_set (float): Target current
+            prop_gain (float, optional): Proportional gain
+            int_gain (float, optional): Integral gain
         """
-        threading.Thread.__init__(self)
+        # threading.Thread.__init__(self)
 
         self.connection = connection
         self.I_setpoint = current_set
@@ -50,15 +49,20 @@ class currentController(object):
         else:
             self.int_gain = 0
 
-        self.threadID = self.connection.channel()
-        self.name = 'currentController_' + str(self.threadID)
+        self.lock = threading.Lock()
+        # self.threadID = self.connection.channel()
+        # self.name = 'currentController_' + str(self.threadID)
 
-        self.control_enable = False
+        # self.control_enable = False
 
     def piControl(self, turn_off_after_disable, print_params, auto_disable):
 
         # if false, stop controller
-        self.control_enable = True
+        self.lock.acquire()
+        try:
+            self.control_enable = True
+        finally:
+            self.lock.release()
 
         I_limit = self.connection.currentLim
         if abs(self.I_setpoint) < 0.002:
@@ -99,16 +103,20 @@ class currentController(object):
         stability_count = 0
         v_meas_queue = [v_meas, 0]
 
+        # control loop
         while self.control_enable:
-            self.connection._write(f'voltage {v_control}V')
+            self.lock.acquire()
+            try:
+                self.connection._write(f'voltage {v_control}V')
+            finally:
+                self.lock.release()
 
             v_control += Kp * i_error
 
             if not hold:
                 integrator += i_error
-
             v_control += Ki * integrator
-
+            # anti-windup
             if v_control > v_cmax:
                 v_control = v_cmax
                 sat_count += 1
@@ -128,24 +136,23 @@ class currentController(object):
             i_meas = self.getMeasurement(meas_quantity="current")[0]
             i_error = self.I_setpoint - i_meas
 
-            hold = abs(i_error) > Kp or abs(i_error) <= 0.003 or reset
+            hold = abs(i_error) > Kp or abs(i_error) <= 0.002 or reset
 
-            if abs(i_error) <= 0.003:
+            if abs(i_error) <= 0.002:
                 stability_count += 1
             else:
                 stability_count = 0
-
+            # allow automatic turning off
             if auto_disable and stability_count >= 10:
                 self.control_enable = False
-            # check if integrator needs to be reset
+
             if abs(v_meas_queue[0] - v_control) > 0.25:
                 v_repeat_count += 1
             else:
                 if not reset:
                     v_repeat_count = 0
-
+            # check if integrator needs to be reset
             reset = v_repeat_count > 5 or sat_count > 5
-
             if reset:
                 if integrator != 0:
                     integrator -= (integrator / 5.0)
@@ -172,16 +179,20 @@ class currentController(object):
             threshold (float, optional): Defaults to 0.02.
         """
         threshold = 2 * step_size
-        self.connection._write(f"voltage {set_voltage}")
-        diff_v = new_voltage - set_voltage
-        sign = np.sign(diff_v)
-        while abs(diff_v) >= threshold:
-            set_voltage = set_voltage + sign * step_size
-            self.connection._write(f"voltage {set_voltage}V")
+        self.lock.acquire()
+        try:
+            self.connection._write(f"voltage {set_voltage}")
             diff_v = new_voltage - set_voltage
             sign = np.sign(diff_v)
+            while abs(diff_v) >= threshold:
+                set_voltage = set_voltage + sign * step_size
+                self.connection._write(f"voltage {set_voltage}V")
+                diff_v = new_voltage - set_voltage
+                sign = np.sign(diff_v)
 
-        self.connection._write(f"voltage {new_voltage}V")
+            self.connection._write(f"voltage {new_voltage}V")
+        finally:
+            self.lock.release()
 
     def getMeasurement(self, meas_type="", meas_quantity="current"):
         """
@@ -203,20 +214,50 @@ class currentController(object):
         command += "?"
 
         measured = []
-        res = self.connection.query(command)
-        if isinstance(res, list):
-            res = res[0]
-        measured.append(float(res))
+        self.lock.acquire()
+        try:
+            res = self.connection.query(command)
+            if isinstance(res, list):
+                res = res[0]
+            measured.append(float(res))
+        finally:
+            self.lock.release()
 
         return measured
 
+    def updateSetCurrent(self, new_current):
+        i_diff = abs(self.getMeasurement(meas_quantity='current')[0] - self.I_setpoint)
+        while i_diff > 0.01:
+            i_diff = abs(self.getMeasurement(meas_quantity='current')[0] - self.I_setpoint)
+        self.lock.acquire()
+        try:
+            self.I_setpoint = new_current
+        finally:
+            self.lock.release()
+
     def setNewCurrent(self, new_current):
-        self.control_enable = False
-        self.I_setpoint = new_current
+        self.lock.acquire()
+        try:
+            self.control_enable = False
+            self.I_setpoint = new_current
+        finally:
+            self.lock.release()
 
 
 class currControlThread(threading.Thread):
-    pass
+    def __init__(
+            self,
+            controller: currentController,
+            turn_off_after_disable=False,
+            print_params=False,
+            auto_disable=False):
+        super.__init__()
+        self.controller = controller
+        self.name = f'currentController_{controller.connection.channel()}'
+        self.args = (turn_off_after_disable, print_params, auto_disable)
+
+    def run(self):
+        self.controller.piControl(self.args[0], self.args[1], self.args[2])
 
 
 if __name__ == "__main__":
