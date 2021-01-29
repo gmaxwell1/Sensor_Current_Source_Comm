@@ -27,6 +27,8 @@ except ModuleNotFoundError:
     sys.path.insert(1, path.join(sys.path[0], ".."))
     from IT6432.it6432connection import IT6432Connection
 
+    from core.current_control import currentController
+
 
 class voltageRamper(threading.Thread):
     def __init__(
@@ -150,8 +152,13 @@ def setCurrents(
     # conservative estimation of coil resistance: 0.48 ohm
     v_set_1 = signs[idx_1] * 0.48 * current_1
     worker_1 = voltageRamper(channel_1, v_set_1, current_1, True, step_size=0.05)
+    # controller_1 = currentController(channel_1, current_1, prop_gain=0.045)
 
     thread_pool.append(worker_1)
+    #     threading.Thread(
+    #         controller_1.piControl,
+    #         name='currentController_1',
+    #         args=[False, False]))
 
     if channel_2 is not None:
         idx_2 = channel_2._channel - 1
@@ -163,8 +170,13 @@ def setCurrents(
         # conservative estimation of coil resistance: 0.48 ohm
         v_set_2 = signs[idx_2] * 0.48 * current_2
         worker_2 = voltageRamper(channel_2, v_set_2, current_2, True, step_size=0.05)
+        # controller_2 = currentController(channel_2, current_2, prop_gain=0.045)
 
         thread_pool.append(worker_2)
+        #     threading.Thread(
+        #         controller_2.piControl,
+        #         name='currentController_2',
+        #         args=[False, False]))
 
     if channel_3 is not None:
         idx_3 = channel_3._channel - 1
@@ -176,8 +188,13 @@ def setCurrents(
         # conservative estimation of coil resistance: 0.48 ohm
         v_set_3 = signs[idx_3] * 0.48 * current_3
         worker_3 = voltageRamper(channel_3, v_set_3, current_3, True, step_size=0.05)
+        # controller_3 = currentController(channel_3, current_3, prop_gain=0.045)
 
         thread_pool.append(worker_3)
+        #     threading.Thread(
+        #         controller_3.piControl,
+        #         name='currentController_3',
+        #         args=[False, False]))
 
     for thread in thread_pool:
         thread.start()
@@ -350,25 +367,11 @@ def demagnetizeCoils(
     """
     if factor >= 1:
         factor = 0.99
-    tspan = [-factor, factor**2, 0]
-    # limits = np.outer(current_config, 1 / ((tspan + 1)**2))
-    # sign = 1
-    # ramp_workers = [None, None, None]
+    # tspan = [-factor, 0]
 
-    for item in tspan:
-        setCurrents(channel_1, channel_2, channel_3, item * np.array(current_config))
-        sleep(2)
-    #     sign = sign * -1
-    #     ramp_workers[0] = voltageRamper(channel_1, sign *
-    #                                     current_config[0], current_config[0], True, step_size=0.01)
-    #     ramp_workers[1] = voltageRamper(channel_2, sign *
-    #                                     current_config[1], current_config[1], True, step_size=0.01)
-    #     ramp_workers[2] = voltageRamper(channel_3, sign *
-    #                                     current_config[2], current_config[2], True, step_size=0.01)
-    #     for thread in ramp_workers:
-    #         thread.start()
-    #     for thread in ramp_workers:
-    #         thread.join()
+    # setCurrents(channel_1, channel_2, channel_3, -factor * np.array(current_config))
+    sleep(2)
+    disableCurrents(channel_1, channel_2, channel_3)
 
 
 ########## test stuff out ##########
@@ -449,4 +452,5 @@ if __name__ == "__main__":
 
     # for i in range(10):
     #     pwr_list = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='power')
-    #     print(f'power on channel 1/2/3: {pwr_list[0]:.3f}W, {pwr_list[1]:.3f}W, {pwr_list[2]:.3f}W')
+    # print(f'power on channel 1/2/3: {pwr_list[0]:.3f}W, {pwr_list[1]:.3f}W,
+    # {pwr_list[2]:.3f}W')

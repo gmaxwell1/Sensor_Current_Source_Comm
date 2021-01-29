@@ -159,7 +159,7 @@ class inputThread(threading.Thread):
             threadID (int): An identifier number assigned to the newly created thread.
         """
         threading.Thread.__init__(self)
-        self.threadID = threadID
+        self.name = f'thread_{threadID}'
 
     def run(self):
         # global variable flags is modified and can then be read/modified

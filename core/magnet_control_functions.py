@@ -9,6 +9,7 @@
 # Date: 15.10.2020
 # latest update: 25.01.2021
 
+import csv
 import math
 import sys
 import threading
@@ -22,22 +23,12 @@ import numpy as np
 ########## local imports ##########
 try:
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-    from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
-                                                               saveTempData)
-    from other_useful_functions.general_functions import ensure_dir_exists
-    from other_useful_functions.general_functions import \
-        save_time_resolved_measurement as strm
-    from other_useful_functions.general_functions import \
-        sensor_to_magnet_coordinates
-
-    import core.field_current_tr as tr
-    import core.meas_parallelization as p
-    from core.main_comm_new import *
-    from core.measurement_functions import *
-
 except ModuleNotFoundError:
+    pass
+finally:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
+    from IT6432.it6432connection import IT6432Connection
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
     from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
                                                                saveTempData)
@@ -49,8 +40,13 @@ except ModuleNotFoundError:
 
     import core.field_current_tr as tr
     import core.meas_parallelization as p
-    from core.main_comm_new import *
-    from core.measurement_functions import *
+    from core.current_control import currentController
+    from core.main_comm_new import (closeConnection, demagnetizeCoils,
+                                    disableCurrents, getMeasurement,
+                                    openConnection, setCurrents)
+    from core.measurement_functions import (gotoPosition, measure,
+                                            saveDataPoints,
+                                            timeResolvedMeasurement)
 
 ##########  Current parameters ##########
 desCurrents = [0, 0, 0]  # in milliamps
@@ -555,10 +551,10 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
 ##########################################################################
             elif c1 == 's':
                 with MetrolabTHM1176Node(period=0.05, range='0.3 T', average=20) as node:
-                    test_thread = inputThread(1)
+                    test_thread = p.inputThread(1)
                     test_thread.start()
                     sleep(0.1)
-                    while flags[0]:
+                    while p.flags[0]:
                         newBMeasurement = sensor_to_magnet_coordinates(
                             np.array(node.measureFieldmT()))
                         # newBMeasurement = np.random.randn((3)) * 10
@@ -567,16 +563,16 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
                             np.arccos(newBMeasurement[2] / B_magnitude))
                         phi = np.degrees(np.arctan2(
                             newBMeasurement[1], newBMeasurement[0]))
-                        if flags[0]:
+                        if p.flags[0]:
                             print(
                                 f'\rMeasured B field: ({newBMeasurement[0]:.2f}, {newBMeasurement[1]:.2f}, '
                                 f'{newBMeasurement[2]:.2f}) / In polar coordinates: ({B_magnitude:.2f}, '
                                 f'{theta:.2f}°, {phi:.2f}°)    ', sep='', end='', flush=True)
                         sleep(0.5)
 
-                threadLock.acquire()
-                flags.insert(0, 1)
-                threadLock.release()
+                p.threadLock.acquire()
+                p.flags.insert(0, 1)
+                p.threadLock.release()
 ##########################################################################
     else:
         if temp_meas:
@@ -610,7 +606,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
             'period': period,
             'duration': duration,
             'averaging': 3}
-        faden = myMeasThread(10, **params)
+        faden = p.myMeasThread(10, **params)
 
         gotoPosition()
         savedir = input('Name of directory where this measurement will be saved: ')
@@ -627,12 +623,12 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
             setCurrents(channel_1, channel_2, channel_3, desCurrents)
             # prevent the connection from timing out for long measurements.
             if timer < 500:
-                countdown = timerThread(0, timer)
+                countdown = p.timerThread(0, timer)
                 countdown.start()
                 sleep(timer)
                 countdown.join()
             else:
-                countdown = timerThread(0, timer)
+                countdown = p.timerThread(0, timer)
                 countdown.start()
                 starttime = time()
                 while time() - starttime < timer:
@@ -662,48 +658,92 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
 
 if __name__ == "__main__":
 
-    # arduino = ArduinoUno('COM7')
-    # measure_temp = threading.Thread(target=arduino.getTemperatureMeasurements)
     channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
-    # disableCurrents(channel_1, channel_2, channel_3)
-    # gotoPosition(node, meas_height=1.5)
+    # cc_1 = currentController(channel_1, 1, prop_gain=0.045, int_gain=0.0)
+    # cc_2 = currentController(channel_2, 1, prop_gain=0.045, int_gain=0.0)
+    # cc_3 = currentController(channel_3, 1, prop_gain=0.045, int_gain=0.0)
 
-    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
-    BFields = [np.array([30, 30, 10]), np.array([30, 30, 10]), np.array(
-        [30, 30, 10]), np.array([30, 30, 10]), np.array([30, 30, 10])]
+    # params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
+    BFields = [np.array([0, -50, 10]), np.array([30, 30, -30]), np.array(
+               [-43, 94, 0]), np.array([0, -10, 80]), np.array([20, 0, -18]),
+               np.array([27, 10, 30])]
+    # workers = [None, None, None]
+    returnDict = {}
 
-    with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
-        B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
+    # with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+    #     B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
 
-    i = 16
+    k = 22
 
-    for B in BFields:
-        B_Field_cartesian = B - B_rem
+    for ix, B in enumerate(BFields):
+        B_Field_cartesian = B  # - B_rem
         channels = tr.computeCoilCurrents(B_Field_cartesian)
+        print(
+            f'\r({channels[0]:.3f}, {channels[1]:.3f}, {channels[2]:.3f})A; '
+            f'({B_Field_cartesian[0]:.3f}, {B_Field_cartesian[1]:.3f}, '
+            f'{B_Field_cartesian[2]:.3f})mT')
+        # cc_1.setNewCurrent(channels[0])
+        # cc_2.setNewCurrent(channels[1])
+        # cc_3.setNewCurrent(channels[2])
 
-        faden = p.myMeasThread(**params)
-        faden.start()
+        # workers[0] = threading.Thread(target=cc_1.piControl,
+        #                               name=f'currentController_1',
+        #                               args=[True, False])
+        # workers[1] = threading.Thread(target=cc_2.piControl,
+        #                               name=f'currentController_2',
+        #                               args=[True, False])
+        # workers[2] = threading.Thread(target=cc_3.piControl,
+        #                               name=f'currentController_3',
+        #                               args=[True, False])
+        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+            measureB = threading.Thread(target=node.start_acquisition, name='Meas_Thread')
+            measureB.start()
+            # for worker in workers:
+            #     worker.start()
+            setCurrents(channel_1, channel_2, channel_3, channels)
+            starttime = time()  # = 0
+            while time() - starttime < 240:
+                pass
+            demagnetizeCoils(channel_1, channel_2, channel_3, channels, 0.5)
+            # cc_1.control_enable = False
+            # cc_2.control_enable = False
+            # cc_3.control_enable = False
+            node.stop = True
 
-        setCurrents(channel_1, channel_2, channel_3, desCurrents=channels)
-        sleep(10)
-        setCurrents(channel_1, channel_2, channel_3, desCurrents=[0, 0, 0])
-        sleep(2)
-        faden.join()
+            # for worker in workers:
+            #     worker.join()
+            measureB.join()
+            try:
+                xValues = -np.array(node.data_stack['Bz'])
+                yValues = -np.array(node.data_stack['Bx'])
+                zValues = node.data_stack['By']
+
+                timeline = node.data_stack['Timestamp']
+                t_offset = timeline[0]
+                for ind in range(len(timeline)):
+                    timeline[ind] = round(timeline[ind] - t_offset, 3)
+                returnDict = {'Bx': xValues.tolist(),
+                              'By': yValues.tolist(),
+                              'Bz': zValues.tolist(),
+                              'temp': node.data_stack['Temperature'],
+                              'time': timeline}
+            except Exception as e:
+                print(f'{__name__}: {e}')
 
         strm(
-            p.returnDict,
+            returnDict,
             r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag',
-            f'testing_demag_{i}',
+            f'testing_demag_{k}',
             now=True)
+        # with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+        #     sleep(0.5)
+        #     B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
+        k += 1
 
-        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
-            B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
-        i += 1
-
-    disableCurrents(channel_1, channel_2, channel_3)
+    # disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
 
     # arduino.stop = True

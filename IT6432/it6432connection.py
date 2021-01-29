@@ -9,7 +9,8 @@
 # latest update: 25.01.2021
 
 import socket
-from time import time, sleep
+from time import sleep, time
+
 # from qs3.utils import logger
 
 
@@ -30,7 +31,7 @@ class GenericError(ErrorBase):
     def __init__(self, code, msg, *args, **kwargs):
         ErrorBase.__init__(self, code, *args, msg=msg, **kwargs)
         # logger.debug(f'{code}: {msg}')
-        print(f'{code}: {msg}')
+        print(f'\n{code}: {msg}')
 
 
 class ParameterOverflow(ErrorBase):
@@ -435,7 +436,7 @@ class IT6432Connection:
         modes = ['normal', 'fast', 'time']
         basecmd = 'output:speed'
 
-        if not mode in modes:
+        if mode not in modes:
             return
 
         self._write(f'{basecmd} {mode}')
