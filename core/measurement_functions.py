@@ -79,7 +79,7 @@ def newMeasurementFolder(defaultDataDir='data_sets', sub_dir_base='z_field_meas'
     return sub_dirname, dataDir
 
 
-def gotoPosition(meas_height=1.2, meas_y=6.6, meas_x=7.2):
+def gotoPosition(meas_height=1.3, meas_y=6.6, meas_x=7.2):
     """
     move the stage into position to measure with the sensor.
     Note: Be sure that the position parameters here correspond to the actual setup

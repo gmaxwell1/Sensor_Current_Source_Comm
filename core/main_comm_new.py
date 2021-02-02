@@ -150,7 +150,7 @@ def setCurrents(
         else channel_1.currentLim
     )
     # conservative estimation of coil resistance: 0.48 ohm
-    v_set_1 = signs[idx_1] * 0.48 * current_1
+    v_set_1 = signs[idx_1] * 0.472 * current_1
     worker_1 = voltageRamper(channel_1, v_set_1, current_1, True, step_size=0.05)
     # controller_1 = currentController(channel_1, current_1, prop_gain=0.045)
 
@@ -168,7 +168,7 @@ def setCurrents(
             else channel_2.currentLim
         )
         # conservative estimation of coil resistance: 0.48 ohm
-        v_set_2 = signs[idx_2] * 0.48 * current_2
+        v_set_2 = signs[idx_2] * 0.472 * current_2
         worker_2 = voltageRamper(channel_2, v_set_2, current_2, True, step_size=0.05)
         # controller_2 = currentController(channel_2, current_2, prop_gain=0.045)
 
@@ -186,7 +186,7 @@ def setCurrents(
             else channel_3.currentLim
         )
         # conservative estimation of coil resistance: 0.48 ohm
-        v_set_3 = signs[idx_3] * 0.48 * current_3
+        v_set_3 = signs[idx_3] * 0.472 * current_3
         worker_3 = voltageRamper(channel_3, v_set_3, current_3, True, step_size=0.05)
         # controller_3 = currentController(channel_3, current_3, prop_gain=0.045)
 
@@ -293,7 +293,7 @@ def rampVoltageSimple(
         threshold (float, optional): Defaults to 0.02.
     """
     threshold = 2 * step_size
-    connection._write(f"voltage {set_voltage}")
+    connection._write(f"voltage {set_voltage}V")
     diff_v = new_voltage - set_voltage
     sign = np.sign(diff_v)
     while abs(diff_v) >= threshold:
@@ -356,7 +356,7 @@ def demagnetizeCoils(
     channel_2: IT6432Connection,
     channel_3: IT6432Connection,
     current_config=[1, 1, 1],
-    factor=0.5
+    # factor=0.5
 ):
     """
     Try to eliminate any hysteresis effects by applying a slowly oscillating and decaying
@@ -365,42 +365,44 @@ def demagnetizeCoils(
     Args:
         factor (float): A factor 0<factor<1 to reduce the applied field by.
     """
-    if factor >= 1:
-        factor = 0.99
-    steps = np.array([0, 1, 2, 3, 4, 5, 6])
-    bounds = np.outer(current_config, factor * np.exp(-steps))
+    # if factor >= 1:
+    #     factor = 0.99
+    steps = np.array([0, 1, 2, 3, 4])
+    bounds = 0.475 * np.outer(current_config, np.exp(-steps))
 
-    thread_pool = []
+    channel_1._write('current 5.01A')
+    channel_2._write('current 5.01A')
+    channel_3._write('current 5.01A')
 
-    controller_1 = currentController(channel_1, current_config[0], prop_gain=0.045)
-    thread_pool.append(
-        threading.Thread(target=controller_1.piControl,
-                         name='currentController_1',
-                         args=[True, False, False]))
-    controller_2 = currentController(channel_2, current_config[1], prop_gain=0.045)
-    thread_pool.append(
-        threading.Thread(target=controller_2.piControl,
-                         name='currentController_2',
-                         args=[True, False, False]))
-    controller_3 = currentController(channel_3, current_config[2], prop_gain=0.045)
-    thread_pool.append(
-        threading.Thread(target=controller_3.piControl,
-                         name='currentController_3',
-                         args=[True, False, False]))
-    for thread in thread_pool:
-        thread.start()
-
+    thread_pool = [None, None, None]
     sign = -1
 
-    for i in range(len(bounds)):
-        controller_1.updateSetCurrent(sign * bounds[0, i])
-        controller_2.updateSetCurrent(sign * bounds[1, i])
-        controller_3.updateSetCurrent(sign * bounds[2, i])
+    for i in range(bounds.shape[1]):
+        voltages = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='voltage')
+        thread_pool[0] = threading.Thread(target=rampVoltageSimple,
+                                          name='currentController_1',
+                                          args=[channel_1, voltages[0], sign * bounds[0, i]],
+                                          kwargs={'step_size': 0.06})
+
+        thread_pool[1] = threading.Thread(target=rampVoltageSimple,
+                                          name='currentController_2',
+                                          args=[channel_2, voltages[1], sign * bounds[1, i]],
+                                          kwargs={'step_size': 0.06})
+
+        thread_pool[2] = threading.Thread(target=rampVoltageSimple,
+                                          name='currentController_3',
+                                          args=[channel_3, voltages[2], sign * bounds[2, i]],
+                                          kwargs={'step_size': 0.06})
+        for thread in thread_pool:
+            thread.start()
 
         sign *= -1
-        # setCurrents(channel_1, channel_2, channel_3, -factor * np.array(current_config))
-    for thread in thread_pool:
-        thread.join()
+
+        for thread in thread_pool:
+            thread.join()
+
+        sleep(0.1)
+
     disableCurrents(channel_1, channel_2, channel_3)
 
 
@@ -411,8 +413,9 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
 
-    demagnetizeCoils(channel_1, channel_2, channel_3, np.array([0.5, 0.5, 0.5]))
-    # setCurrents(channel_1, channel_2, channel_3, np.array([-5, 5, 5]))
+    setCurrents(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
+    sleep(0.5)
+    demagnetizeCoils(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
     # disableCurrents(channel_1, channel_2, channel_3)
 
     closeConnection(channel_1, channel_2, channel_3)

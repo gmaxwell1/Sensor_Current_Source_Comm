@@ -108,7 +108,7 @@ def callGridSweep():
         datadir=datadir,
         factor=start_val,
         BField=use_B_vectors_as_input,
-        demagnetize=False,
+        demagnetize=True,
         today=(inp6 == "y"),
         temp_meas=(inp5 == "y"),
     )

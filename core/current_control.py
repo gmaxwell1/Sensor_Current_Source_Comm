@@ -53,7 +53,7 @@ class currentController(object):
         # self.threadID = self.connection.channel()
         # self.name = 'currentController_' + str(self.threadID)
 
-        # self.control_enable = False
+        self.control_enable = False
 
     def piControl(self, turn_off_after_disable, print_params, auto_disable):
 
@@ -61,16 +61,18 @@ class currentController(object):
         self.lock.acquire()
         try:
             self.control_enable = True
+
+            I_limit = self.connection.currentLim
+            if abs(self.I_setpoint) < 0.002:
+                self.I_setpoint = 0
+
+            if self.connection.query("output?") == "0":
+                self.connection.clrOutputProt()
+                self.connection._write(f"voltage 0V;:current {I_limit}A;:output 1")
+            else:
+                self.connection._write(f"current {I_limit}A")
         finally:
             self.lock.release()
-
-        I_limit = self.connection.currentLim
-        if abs(self.I_setpoint) < 0.002:
-            self.I_setpoint = 0
-
-        if self.connection.query("output?") == "0":
-            self.connection.clrOutputProt()
-            self.connection._write(f"voltage 0V;:current {I_limit}A;:output 1")
 
         # parameters for PI control:
         Kp = self.prop_gain
@@ -78,7 +80,7 @@ class currentController(object):
         integrator = 0
         hold = True
         reset = False
-        Kff = 0.4
+        Kff = 0.45
         # control input & error
         v_control = 0
         i_error = 0
@@ -94,7 +96,7 @@ class currentController(object):
             print(f"desired current {self.connection.channel()}: {self.I_setpoint}A")
 
         v_control += Kff * self.I_setpoint
-        self.rampVoltageSimple(v_meas, v_control, 0.1)
+        self.rampVoltageSimple(v_meas, v_control, 0.05)
 
         i_error = self.I_setpoint - i_meas
 
@@ -105,11 +107,13 @@ class currentController(object):
 
         # control loop
         while self.control_enable:
-            self.lock.acquire()
             try:
                 self.connection._write(f'voltage {v_control}V')
-            finally:
-                self.lock.release()
+                # allow automatic turning off
+                if auto_disable and stability_count >= 10:
+                    self.control_enable = False
+            except BaseException as e:
+                print(e)
 
             v_control += Kp * i_error
 
@@ -142,9 +146,6 @@ class currentController(object):
                 stability_count += 1
             else:
                 stability_count = 0
-            # allow automatic turning off
-            if auto_disable and stability_count >= 10:
-                self.control_enable = False
 
             if abs(v_meas_queue[0] - v_control) > 0.25:
                 v_repeat_count += 1
@@ -179,7 +180,6 @@ class currentController(object):
             threshold (float, optional): Defaults to 0.02.
         """
         threshold = 2 * step_size
-        self.lock.acquire()
         try:
             self.connection._write(f"voltage {set_voltage}")
             diff_v = new_voltage - set_voltage
@@ -191,8 +191,8 @@ class currentController(object):
                 sign = np.sign(diff_v)
 
             self.connection._write(f"voltage {new_voltage}V")
-        finally:
-            self.lock.release()
+        except BaseException as e:
+            print(e)
 
     def getMeasurement(self, meas_type="", meas_quantity="current"):
         """
@@ -214,15 +214,14 @@ class currentController(object):
         command += "?"
 
         measured = []
-        self.lock.acquire()
+
         try:
             res = self.connection.query(command)
             if isinstance(res, list):
                 res = res[0]
             measured.append(float(res))
-        finally:
-            self.lock.release()
-
+        except BaseException as e:
+            print(e)
         return measured
 
     def updateSetCurrent(self, new_current):
@@ -264,14 +263,14 @@ if __name__ == "__main__":
 
     channel_1 = IT6432Connection(1)
     openConnection(channel_1)
-    c = currentController(channel_1, 1, prop_gain=0.03, int_gain=0)
+    c = currentController(channel_1, 1, prop_gain=0.03, int_gain=0.001)
     currents = [0.757, -0.420, 1.453, 4.5, -3.421, -0.03, 3.193]
 
     for ix, item in enumerate(currents):
         c.setNewCurrent(item)
         task = threading.Thread(target=c.piControl,
                                 name=f'currentController{ix}',
-                                args=[ix == len(currents) - 1])
+                                args=[ix == len(currents) - 1, False, False])
         task.start()
         i = 0
         while i != '':
