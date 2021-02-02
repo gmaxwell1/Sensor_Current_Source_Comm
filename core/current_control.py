@@ -26,7 +26,8 @@ class currentController(object):
         **kwargs
     ):
         """
-        A thread that simply runs the function rampVoltage.
+        A thread that can be used as a PI controller for the power supplies, such that
+        they work as voltage controlled current sources.
 
         Args:
             connection (IT6432Connection): Current source object which is to be controlled
@@ -56,7 +57,17 @@ class currentController(object):
         self.control_enable = False
 
     def piControl(self, turn_off_after_disable, print_params, auto_disable):
+        """
+        Basic PI controller for voltage controlled current.
 
+        Args:
+            turn_off_after_disable (bool): the current source will be turned off after
+                                           the controller is disabled.
+            print_params (bool): the control/error parameters will be continuously printed
+                                 and updated.
+            auto_disable (bool): Current source will be disabled when the desired set
+                                 point is reached.
+        """
         # if false, stop controller
         self.lock.acquire()
         try:
@@ -257,6 +268,43 @@ class currControlThread(threading.Thread):
 
     def run(self):
         self.controller.piControl(self.args[0], self.args[1], self.args[2])
+
+
+class magneticFieldControl(object):
+    def __init__(
+        self,
+        current_set,
+        **kwargs
+    ):
+        self.channel_1 = IT6432Connection(1)
+        self.channel_2 = IT6432Connection(2)
+        self.channel_3 = IT6432Connection(3)
+
+    def openConnection(self):
+        """
+        Open a connection to each IT6432 current source.
+        """
+        self.channel_1.connect()
+        self.channel_1._write("system:remote")
+
+        self.channel_2.connect()
+        self.channel_2._write("system:remote")
+
+        self.channel_3.connect()
+        self.channel_3._write("system:remote")
+
+    def closeConnection(self):
+        """
+        Close the connection with the current sources.
+        """
+        self.channel_1._write("system:local")
+        self.channel_1.close()
+
+        self.channel_2._write("system:local")
+        self.channel_2.close()
+
+        self.channel_3._write("system:local")
+        self.channel_3.close()
 
 
 if __name__ == "__main__":

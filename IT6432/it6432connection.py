@@ -117,13 +117,13 @@ class IT6432Connection:
         Args:
             channel (int): Only use channels 1,2,3!
         """
-        self.sock = socket.socket()
+        self._sock = socket.socket()
         self._channel = channel
-        self.host = '0.0.0.0'
-        self.port = 0
+        self._host = '0.0.0.0'
+        self.__port = 0
         self.connected = False
 
-        self.read_termination = '\n'
+        self._read_termination = '\n'
         self._chunk_size = 1024
 
         self._timeout = 5.0
@@ -143,15 +143,15 @@ class IT6432Connection:
         """
         try:
             if self._channel == 1:
-                self.host = self.IT6432_ADDRESS1
+                self._host = self.IT6432_ADDRESS1
             elif self._channel == 2:
-                self.host = self.IT6432_ADDRESS2
+                self._host = self.IT6432_ADDRESS2
             elif self._channel == 3:
-                self.host = self.IT6432_ADDRESS3
-            self.port = self.IT6432_PORT
-            self.sock.connect((self.host, self.port))
+                self._host = self.IT6432_ADDRESS3
+            self._port = self.IT6432_PORT
+            self._sock.connect((self._host, self._port))
             self.connected = True
-            self.sock.settimeout(self._timeout)
+            self._sock.settimeout(self._timeout)
 
             limits = self.getMaxMinOutput()
             self.currentLim = limits[0]
@@ -175,7 +175,7 @@ class IT6432Connection:
         # add command termination
         cmd += self.read_termination
         try:
-            self.sock.sendall(cmd.encode('ascii'))
+            self._sock.sendall(cmd.encode('ascii'))
         except (ConnectionResetError, ConnectionError, ConnectionRefusedError, ConnectionAbortedError):
             # logger.debug(f'{__name__} error when sending the "{cmd}" command')
             print(f'{__name__} error when sending the "{cmd}" command')
@@ -204,7 +204,7 @@ class IT6432Connection:
                 to_read_len = _chunk_size - read_len
                 if to_read_len <= 0:
                     break
-                data = self.sock.recv(to_read_len)
+                data = self._sock.recv(to_read_len)
                 chunk += data
                 read_len += len(data)
                 term_char = self.read_termination.encode()
@@ -289,7 +289,7 @@ class IT6432Connection:
 
     def close(self) -> None:
         """Closes the socket connection"""
-        self.sock.close()
+        self._sock.close()
 
     # context manager
 
@@ -300,7 +300,7 @@ class IT6432Connection:
 
     def __exit__(self, type, value, traceback):
         if self.connected:
-            self.sock.close()
+            self._sock.close()
             return not self.connected
         else:
             return isinstance(value, TypeError)
