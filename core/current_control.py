@@ -273,7 +273,6 @@ class currControlThread(threading.Thread):
 class magneticFieldControl(object):
     def __init__(
         self,
-        current_set,
         **kwargs
     ):
         self.channel_1 = IT6432Connection(1)
@@ -305,6 +304,46 @@ class magneticFieldControl(object):
 
         self.channel_3._write("system:local")
         self.channel_3.close()
+
+    def getMeasurement(self, channels, meas_type=[""], meas_quantity=["current"]):
+        """
+        Get DC current/power/voltage values from each channel
+
+        Returns: a list of all the currents (or an error code)
+        """
+        command = "measure:"
+        quantities = ["current", "voltage", "power"]
+        types = ["", "acdc", "max", "min"]
+        if meas_quantity not in quantities:
+            meas_quantity = "current"
+        if meas_type not in types:
+            meas_type = ""
+
+            command += meas_quantity
+            if meas_type != "":
+                command += ":" + meas_type[0]
+            command += "?"
+
+        measured = []
+        if 1 in channels:
+            res = self.channel_1.query(command)
+            if isinstance(res, list):
+                res = res[0]
+            measured.append(float(res))
+
+        if 2 in channels:
+            res = self.channel_2.query(command)
+            if isinstance(res, list):
+                res = res[0]
+            measured.append(float(res))
+
+        if 3 in channels:
+            res = self.channel_3.query(command)
+            if isinstance(res, list):
+                res = res[0]
+            measured.append(float(res))
+
+        return measured
 
 
 if __name__ == "__main__":
