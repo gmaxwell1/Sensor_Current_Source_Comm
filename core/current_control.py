@@ -270,7 +270,7 @@ class currControlThread(threading.Thread):
         self.controller.piControl(self.args[0], self.args[1], self.args[2])
 
 
-class magneticFieldControl(object):
+class powerSupplyCommands(object):
     def __init__(
         self,
         **kwargs
@@ -344,6 +344,55 @@ class magneticFieldControl(object):
             measured.append(float(res))
 
         return measured
+
+    def rampVoltageSimple(
+        self,
+        channel,
+        set_voltage,
+        new_voltage,
+        step_size=0.01
+    ):
+        """
+        Helper function to take care of setting the voltage.
+
+        Args:
+            connection (IT6432Connection):
+            set_voltage (float): Voltage that is set right now.
+            new_voltage (float): Target voltage.
+            step_size (float, optional): Defaults to 0.01.
+            threshold (float, optional): Defaults to 0.02.
+        """
+        threshold = 2 * step_size
+        connection._write(f"voltage {set_voltage}V")
+        diff_v = new_voltage - set_voltage
+        sign = np.sign(diff_v)
+        while abs(diff_v) >= threshold:
+            set_voltage = set_voltage + sign * step_size
+            connection._write(f"voltage {set_voltage}V")
+            diff_v = new_voltage - set_voltage
+            sign = np.sign(diff_v)
+
+        connection._write(f"voltage {new_voltage}V")
+
+    def disableCurrents(self):
+        """Disable current controllers."""
+        thread_pool = []
+
+        worker_1 = voltageRamper(channel_1, 0, 0, True)
+        thread_pool.append(worker_1)
+
+        if channel_2 is not None:
+            worker_2 = voltageRamper(channel_2, 0, 0, True)
+            thread_pool.append(worker_2)
+
+        if channel_3 is not None:
+            worker_3 = voltageRamper(channel_3, 0, 0, True)
+            thread_pool.append(worker_3)
+
+        for thread in thread_pool:
+            thread.start()
+        for thread in thread_pool:
+            thread.join()
 
 
 if __name__ == "__main__":
