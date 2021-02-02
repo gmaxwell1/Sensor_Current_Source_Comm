@@ -705,7 +705,7 @@ if __name__ == '__main__':
 
         signs = np.sign(desCurrents)
         # demag = np.array(desCurrents) / (max(desCurrents))
-        demagnetizeCoils(channel_1, channel_2, channel_3, current_config=0.5 * signs)
+        demagnetizeCoils(channel_1, channel_2, channel_3, current_config=2.5 * signs)
         sleep(2)
         mean_data, std_data = measure(node, N=10, average=True)
         remanence_values.append(mean_data)
