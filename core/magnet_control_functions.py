@@ -11,14 +11,14 @@
 
 import csv
 import math
+import os
 import sys
 import threading
 from datetime import datetime
 from time import sleep, time
 
-import matplotlib.pyplot as plt
-########## Standard library imports ##########
 import numpy as np
+import pandas as pd
 
 ########## local imports ##########
 try:
@@ -26,7 +26,6 @@ try:
 except ModuleNotFoundError:
     pass
 finally:
-    import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
     from IT6432.it6432connection import IT6432Connection
@@ -538,7 +537,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
     closeConnection(channel_1, channel_2, channel_3)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # channel_1 = IT6432Connection(1)
     # channel_2 = IT6432Connection(2)
     # channel_3 = IT6432Connection(3)
@@ -670,7 +669,7 @@ if __name__ == '__main__':
 
     # meas_duration = 22
 
-    # time_estimate = len(input_list) * meas_duration
+    start_time = time()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     with MetrolabTHM1176Node(period=0.01, block_size=30, range='0.3 T', average=1, unit='MT') as node:
         for i, row in enumerate(input_list):
@@ -683,12 +682,17 @@ if __name__ == '__main__':
             config = tr.computeCoilCurrents(B_vector)
 
             for k in range(3):
-                desCurrents[k] = config[k] * factor
+                desCurrents[k] = config[k]
 
             setCurrents(channel_1, channel_2, channel_3, desCurrents)
             # Let the field stabilize
             sleep(0.5)
-
+            elapsed_time = time() - start_time
+            print(
+                f'\rmeasurement {i + 1}/{len(input_list)}; {elapsed_time:.1f}s so far   ',
+                sep='',
+                end='',
+                flush=True)
             # collect measured and expected magnetic field (of the specified sensor in measurements)
             # see measurements.py for more details
             mean_data, std_data = measure(node, N=10, average=True)
@@ -699,11 +703,16 @@ if __name__ == '__main__':
             # we already know the expected field values
             expected_fields.append(B_vector)
 
-            demagnetizeCoils(channel_1, channel_2, channel_3, current_config=desCurrents)
+            signs = np.sign(desCurrents)
+            demagnetizeCoils(channel_1, channel_2, channel_3, current_config=0.5 * signs)
             mean_data, std_data = measure(node, N=10, average=True)
             sleep(0.5)
             remanence_values.append(mean_data)
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    all_curr_vals = np.array(all_curr_vals)
+    mean_values = np.array(mean_values)
+    remanence_values = np.array(remanence_values)
+    expected_fields = np.array(expected_fields)
 
     try:
         # depending on which function in main_menu.py was used to measure
@@ -724,12 +733,12 @@ if __name__ == '__main__':
         print(e)
 
     now = datetime.now().strftime('%y_%m_%d_%H-%M-%S')
-    output_file_name = f'{now}_demag_test_1.csv'
+    output_file_name = f'{now}_demag_test_2.csv'
     file_path = os.path.join(
         r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag\demagnetization',
         output_file_name)
     df.to_csv(file_path, index=False, header=True)
 
-    demagnetizeCoils(channel_1, channel_2, channel_3, all_curr_vals[-1])
+    demagnetizeCoils(channel_1, channel_2, channel_3, [0.5, 0.5, 0.5])
     # end of measurements
     closeConnection(channel_1, channel_2, channel_3)
