@@ -598,7 +598,7 @@ class powerSupplyCommands(object):
 
             sleep(0.1)
 
-        disableCurrents(channel_1, channel_2, channel_3)
+        self.disableCurrents()
 
     def disableCurrents(self):
         """Disable current controllers."""
