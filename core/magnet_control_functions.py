@@ -19,6 +19,7 @@ from time import sleep, time
 import matplotlib.pyplot as plt
 ########## Standard library imports ##########
 import numpy as np
+import pandas as pd
 
 ########## local imports ##########
 try:
@@ -683,7 +684,7 @@ if __name__ == '__main__':
             config = tr.computeCoilCurrents(B_vector)
 
             for k in range(3):
-                desCurrents[k] = config[k] * factor
+                desCurrents[k] = config[k]
 
             setCurrents(channel_1, channel_2, channel_3, desCurrents)
             # Let the field stabilize
