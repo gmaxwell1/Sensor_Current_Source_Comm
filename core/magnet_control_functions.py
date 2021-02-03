@@ -538,7 +538,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
     closeConnection(channel_1, channel_2, channel_3)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # channel_1 = IT6432Connection(1)
     # channel_2 = IT6432Connection(2)
     # channel_3 = IT6432Connection(3)
