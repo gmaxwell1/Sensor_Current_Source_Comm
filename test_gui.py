@@ -13,10 +13,10 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import *
 
-# # local imports
-# from core.field_current_tr import computeMagneticFieldVector, computeCoilCurrents
-# from core.main_comm_new import setCurrents, disableCurrents, openConnection, closeConnection
-# from IT6432.it6432connection import IT6432Connection
+from core.current_control import powerSupplyCommands
+from core.field_current_tr import (computeCoilCurrents,
+                                   computeMagneticFieldVector)
+from IT6432.it6432connection import IT6432Connection
 
 # %%
 

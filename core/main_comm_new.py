@@ -38,8 +38,7 @@ class voltageRamper(threading.Thread):
         connection (IT6432Connection): Current source object which is to be controlled
         new_voltage (float): Target voltage
         new_current (float): Target current
-        threadID (int, optional): number of thread for keeping track of which threads are
-                                    running. Defaults to 0.
+        step_size (float, optional): Voltage increment. Defaults to 0.01.
     """
 
     def __init__(
@@ -47,9 +46,7 @@ class voltageRamper(threading.Thread):
         connection: IT6432Connection,
         new_voltage,
         new_current,
-        *args,
         step_size=0.01,
-        threadID=0
     ):
 
         threading.Thread.__init__(self)
@@ -58,10 +55,7 @@ class voltageRamper(threading.Thread):
         self.targetV = new_voltage
         self.targetI = new_current
         self.step_size = step_size
-        self.threadID = threadID
-        if args[0]:
-            self.threadID = connection.channel()
-        self.name = 'VoltageRamper' + str(self.threadID)
+        self.name = 'VoltageRamper' + str(self.connection.channel)
 
     def run(self):
 
@@ -109,15 +103,15 @@ def disableCurrents(channel_1: IT6432Connection, channel_2=None, channel_3=None)
     """Disable current controllers."""
     thread_pool = []
 
-    worker_1 = voltageRamper(channel_1, 0, 0, True)
+    worker_1 = voltageRamper(channel_1, 0, 0)
     thread_pool.append(worker_1)
 
     if channel_2 is not None:
-        worker_2 = voltageRamper(channel_2, 0, 0, True)
+        worker_2 = voltageRamper(channel_2, 0, 0)
         thread_pool.append(worker_2)
 
     if channel_3 is not None:
-        worker_3 = voltageRamper(channel_3, 0, 0, True)
+        worker_3 = voltageRamper(channel_3, 0, 0)
         thread_pool.append(worker_3)
 
     for thread in thread_pool:
@@ -145,7 +139,7 @@ def setCurrents(
 
     signs = np.sign(desCurrents)
 
-    idx_1 = channel_1._channel - 1
+    idx_1 = channel_1.channel - 1
     current_1 = (
         signs[idx_1] * desCurrents[idx_1]
         if abs(desCurrents[idx_1]) <= channel_1.currentLim
@@ -153,7 +147,7 @@ def setCurrents(
     )
     # conservative estimation of coil resistance: 0.48 ohm
     v_set_1 = signs[idx_1] * 0.472 * current_1
-    worker_1 = voltageRamper(channel_1, v_set_1, current_1, True, step_size=0.05)
+    worker_1 = voltageRamper(channel_1, v_set_1, current_1, step_size=0.05)
     # controller_1 = currentController(channel_1, current_1, prop_gain=0.045)
 
     thread_pool.append(worker_1)
@@ -163,7 +157,7 @@ def setCurrents(
     #         args=[False, False]))
 
     if channel_2 is not None:
-        idx_2 = channel_2._channel - 1
+        idx_2 = channel_2.channel - 1
         current_2 = (
             signs[idx_2] * desCurrents[idx_2]
             if abs(desCurrents[idx_2]) <= channel_2.currentLim
@@ -171,7 +165,7 @@ def setCurrents(
         )
         # conservative estimation of coil resistance: 0.48 ohm
         v_set_2 = signs[idx_2] * 0.472 * current_2
-        worker_2 = voltageRamper(channel_2, v_set_2, current_2, True, step_size=0.05)
+        worker_2 = voltageRamper(channel_2, v_set_2, current_2, step_size=0.05)
         # controller_2 = currentController(channel_2, current_2, prop_gain=0.045)
 
         thread_pool.append(worker_2)
@@ -181,7 +175,7 @@ def setCurrents(
         #         args=[False, False]))
 
     if channel_3 is not None:
-        idx_3 = channel_3._channel - 1
+        idx_3 = channel_3.channel - 1
         current_3 = (
             signs[idx_3] * desCurrents[idx_3]
             if abs(desCurrents[idx_3]) <= channel_3.currentLim
@@ -189,7 +183,7 @@ def setCurrents(
         )
         # conservative estimation of coil resistance: 0.48 ohm
         v_set_3 = signs[idx_3] * 0.472 * current_3
-        worker_3 = voltageRamper(channel_3, v_set_3, current_3, True, step_size=0.05)
+        worker_3 = voltageRamper(channel_3, v_set_3, current_3, step_size=0.05)
         # controller_3 = currentController(channel_3, current_3, prop_gain=0.045)
 
         thread_pool.append(worker_3)
@@ -223,7 +217,7 @@ def rampVoltage(
         step_size (float, optional): Voltage increment. Defaults to 0.01.
     """
     logging.basicConfig(filename="voltage_ramp.log", level=logging.DEBUG, force=True)
-    logging.info("now ramping current in channel %s", connection.channel())
+    logging.info("now ramping current in channel %s", connection.channel)
 
     connection.clrOutputProt()
 
@@ -269,11 +263,11 @@ def rampVoltage(
 
     messages = connection.getStatus()
     if "QER0" in messages.keys():
-        logging.info(messages["QER0"] + ", channel: %s", connection.channel())
+        logging.info(messages["QER0"] + ", channel: %s", connection.channel)
     if "QER4" in messages.keys():
-        logging.info(messages["QER4"] + ", channel: %s", connection.channel())
+        logging.info(messages["QER4"] + ", channel: %s", connection.channel)
     if "OSR1" in messages.keys():
-        logging.info(messages["OSR1"] + ", channel: %s", connection.channel())
+        logging.info(messages["OSR1"] + ", channel: %s", connection.channel)
         # print(f'{messages}')
         # connection.checkError()
 

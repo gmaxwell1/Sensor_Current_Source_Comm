@@ -26,7 +26,7 @@ class currentController(object):
         **kwargs
     ):
         """
-        A thread that can be used as a PI controller for the power supplies, such that
+        A class that can be used as a PI controller for the power supplies, such that
         they work as voltage controlled current sources.
 
         Args:
@@ -51,8 +51,6 @@ class currentController(object):
             self.int_gain = 0
 
         self.lock = threading.Lock()
-        # self.threadID = self.connection.channel()
-        # self.name = 'currentController_' + str(self.threadID)
 
         self.control_enable = False
 
@@ -104,7 +102,7 @@ class currentController(object):
 
         # print(f"actual voltage: {v_meas}V, actual current: {i_meas}A")
         if print_params:
-            print(f"desired current {self.connection.channel()}: {self.I_setpoint}A")
+            print(f"desired current {self.connection.channel}: {self.I_setpoint}A")
 
         v_control += Kff * self.I_setpoint
         self.rampVoltageSimple(v_meas, v_control, 0.05)
@@ -263,7 +261,7 @@ class currControlThread(threading.Thread):
             auto_disable=False):
         super.__init__()
         self.controller = controller
-        self.name = f'currentController_{controller.connection.channel()}'
+        self.name = f'currentController_{controller.connection.channel}'
         self.args = (turn_off_after_disable, print_params, auto_disable)
 
     def run(self):
@@ -436,7 +434,7 @@ class powerSupplyCommands(object):
             step_size (float, optional): Voltage increment. Defaults to 0.01.
         """
         # logging.basicConfig(filename="voltage_ramp.log", level=logging.DEBUG, force=True)
-        # logging.info("now ramping current in channel %s", connection.channel())
+        # logging.info("now ramping current in channel %s", connection.channel)
 
         if channel == 1:
             connection = self.__channel_1
@@ -489,11 +487,11 @@ class powerSupplyCommands(object):
 
         # messages = connection.getStatus()
         # if "QER0" in messages.keys():
-        #     logging.info(messages["QER0"] + ", channel: %s", connection.channel())
+        #     logging.info(messages["QER0"] + ", channel: %s", connection.channel)
         # if "QER4" in messages.keys():
-        #     logging.info(messages["QER4"] + ", channel: %s", connection.channel())
+        #     logging.info(messages["QER4"] + ", channel: %s", connection.channel)
         # if "OSR1" in messages.keys():
-        #     logging.info(messages["OSR1"] + ", channel: %s", connection.channel())
+        #     logging.info(messages["OSR1"] + ", channel: %s", connection.channel)
 
     def setCurrents(self, desCurrents: list = [0, 0, 0]):
         """

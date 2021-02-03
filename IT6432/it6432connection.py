@@ -136,7 +136,7 @@ class IT6432Connection:
     #-----------------------------------------------------#
     #------------------ Basic functions ------------------#
     #-----------------------------------------------------#
-    @connected.setter
+
     def connect(self):
         """
         Connects to the server, i.e. the device
