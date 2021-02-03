@@ -253,7 +253,7 @@ class IT6432Connection:
 
         return result
 
-    def checkError(self) -> Exception:
+    def checkError(self) -> None:
         """
         Check if an error occurred.
 
@@ -309,7 +309,7 @@ class IT6432Connection:
     #------------------ Utility functions ------------------#
     #-------------------------------------------------------#
 
-    def getMaxMinOutput(self):
+    def getMaxMinOutput(self) -> tuple:
         """
         Get maximum/minimum current/voltage values for each current channel.
 
@@ -323,7 +323,7 @@ class IT6432Connection:
 
         return float(max_curr), float(min_curr), float(max_volt), float(min_volt)
 
-    def getStatus(self):
+    def getStatus(self) -> dict:
         """
         gets the current status of the current source by sending a query
         for the different status registers. For low-level debugging.
@@ -399,7 +399,7 @@ class IT6432Connection:
 
         return messages
 
-    def setMaxCurrVolt(self,  currentLim=5, voltageLim=10, verbose=False):
+    def setMaxCurrVolt(self,  currentLim=5, voltageLim=10, verbose=False) -> None:
         """
         Set maximum current values for each ECB channel, as long as they are under the threshold specified in the API source code.
         Args:
@@ -423,7 +423,7 @@ class IT6432Connection:
         self._write('current:limit:state ON;:voltage:limit:state ON')
         self._write(f'current:limit {self.currentLim};:voltage:limit {self.voltageLim}')
 
-    def setOutputSpeed(self, mode='normal', time=1):
+    def setOutputSpeed(self, mode='normal', time=1) -> None:
         """
         Set the reaction speed of the output.
 
@@ -441,7 +441,7 @@ class IT6432Connection:
         if mode == 'time':
             self._write(f'{basecmd}:time {time}')
 
-    def outputInfo(self):
+    def outputInfo(self) -> str:
         """
         Returns output type (high or low capacitance) and relay mode.
         """

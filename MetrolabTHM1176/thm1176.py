@@ -127,12 +127,7 @@ class MetrolabTHM1176Node(object):
 
         self.sensor.write(":UNIT " + self.unit)
 
-        if self.range != 'auto':
-            self.sensor.write(":SENS " + self.range)
-            self.sensor.write(":SENS:AUTO OFF")
-        else:
-            self.sensor.write(":SENS:AUTO ON")
-
+        self.setAutoRangeEnabled(self.range == 'auto')
         self.setAveragingCount()
         self.set_periodic_trigger()
 
