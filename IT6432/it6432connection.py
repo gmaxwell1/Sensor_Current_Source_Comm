@@ -68,9 +68,12 @@ class StringDataError(ErrorBase):
 
 class IT6432Connection:
     """
-    Quick and dirty protocol for communication with IT 6432 current sources.
-    The IP address/source port can be changed by reprogramming, although there
+    An interface for communication with IT 6432 current sources.
+    The IP address/source port can be changed by reprogramming the devices, although there
     should be no need to do this.
+
+    Args:
+            channel (int): Only use channels 1,2,3!
     """
     ##########     Connection parameters      ##########
     ########## (as configured on each device) ##########
@@ -113,17 +116,14 @@ class IT6432Connection:
             return GenericError(code, msg)
 
     def __init__(self, channel: int):
-        """
-        Args:
-            channel (int): Only use channels 1,2,3!
-        """
-        self.sock = socket.socket()
-        self._channel = channel
-        self.host = '0.0.0.0'
-        self.port = 0
-        self.connected = False
+        self.__channel = channel
+        self.__connected = False
 
-        self.read_termination = '\n'
+        self._sock = socket.socket()
+        self._host = '0.0.0.0'
+        self._port = 0
+
+        self._read_termination = '\n'
         self._chunk_size = 1024
 
         self._timeout = 5.0
@@ -136,78 +136,97 @@ class IT6432Connection:
     #-----------------------------------------------------#
     #------------------ Basic functions ------------------#
     #-----------------------------------------------------#
-
-    def connect(self) -> None:
+    @connected.setter
+    def connect(self):
         """
         Connects to the server, i.e. the device
         """
         try:
-            if self._channel == 1:
-                self.host = self.IT6432_ADDRESS1
-            elif self._channel == 2:
-                self.host = self.IT6432_ADDRESS2
-            elif self._channel == 3:
-                self.host = self.IT6432_ADDRESS3
-            self.port = self.IT6432_PORT
-            self.sock.connect((self.host, self.port))
-            self.connected = True
-            self.sock.settimeout(self._timeout)
+            if self.__channel == 1:
+                self._host = self.IT6432_ADDRESS1
+            elif self.__channel == 2:
+                self._host = self.IT6432_ADDRESS2
+            elif self.__channel == 3:
+                self._host = self.IT6432_ADDRESS3
+            self._port = self.IT6432_PORT
+
+            self._sock.connect((self._host, self._port))
+            self.__connected = True
+            self._sock.settimeout(self._timeout)
 
             limits = self.getMaxMinOutput()
             self.currentLim = limits[0]
             self.voltageLim = limits[2]
 
         except Exception as exc:
-            # logger.debug(f'A problem occured while trying to connect to channel {self._channel}: {exc}')
-            print(f'A problem occured while trying to connect to channel {self._channel}: {exc}')
+            # logger.error(f'A problem occured while trying to connect to channel {self.__channel}: {exc}')
+            print(f'A problem occured while trying to connect to channel {self.__channel}: {exc}')
 
+    @property
     def channel(self) -> int:
         """
         return the channel that this current source is
         """
-        return self._channel
+        return self.__channel
 
-    def _write(self, cmd: str, check_error=True) -> None:
+    @property
+    def connected(self) -> int:
         """
-        Writes command as string to the instrument.
+        return the channel that this current source is
+        """
+        return self.__connected
+
+    def _write(self, cmd: str, check_error: bool = True):
+        """
+        Writes command as ascii characters to the instrument.
         If there is an error, it is saved to the log.
+
+        Args:
+            cmd (str): an SCPI command
+            check_error (bool, optional): Defaults to True.
+
+        Raises:
+            BaseException: if check_error is true and an error occurred.
         """
         # add command termination
-        cmd += self.read_termination
+        cmd += self._read_termination
         try:
-            self.sock.sendall(cmd.encode('ascii'))
+            self._sock.sendall(cmd.encode('ascii'))
         except (ConnectionResetError, ConnectionError, ConnectionRefusedError, ConnectionAbortedError):
-            # logger.debug(f'{__name__} error when sending the "{cmd}" command')
+            # logger.error(f'{__name__} error when sending the "{cmd}" command')
             print(f'{__name__} error when sending the "{cmd}" command')
 
         if check_error:
             self.checkError()
 
-    def _read(self, chunk_size=None, check_error=True) -> str:
+    def _read(self, chunk_size: int = 0, check_error: bool = True) -> str:
         """
         Reads message sent from the instrument on the connection. One chunk (1024 bytes) at
         a time.
 
         Args:
-            chunk_size (int, optional): expected chunk size to be received. Defaults to None.
-            check_error (bool, optional): Whether to actively check for system errors. Defaults to True.
+            chunk_size (int, optional): expected chunk size to be received. Defaults to 0.
+            check_error (bool, optional): Defaults to True.
+
+        Raises:
+            BaseException: if check_error is true and an error occurred.
 
         Returns:
             str: the decoded (from ascii) received message
         """
         read_len = 0
         chunk = bytes()
-        _chunk_size = chunk_size if chunk_size is not None else self._chunk_size
+        __chunk_size = chunk_size if chunk_size != 0 else self._chunk_size
 
         try:
             while True:
-                to_read_len = _chunk_size - read_len
+                to_read_len = __chunk_size - read_len
                 if to_read_len <= 0:
                     break
-                data = self.sock.recv(to_read_len)
+                data = self._sock.recv(to_read_len)
                 chunk += data
                 read_len += len(data)
-                term_char = self.read_termination.encode()
+                term_char = self._read_termination.encode()
                 if term_char in data:
                     term_char_ix = data.index(term_char)
                     read_len = term_char_ix + 1
@@ -217,14 +236,14 @@ class IT6432Connection:
 
         except socket.timeout:
             # logger.debug(f'{__name__} Timeout occurred!')
-            print(f'{__name__} Timeout occurred! on {self._channel}')
+            print(f'{__name__} Timeout occurred! on {self.__channel}')
             return ''
 
         try:
             res = chunk.decode('ascii').strip('\n')
         except UnicodeDecodeError:
             res = chunk.decode('uft8').strip('\n')
-            # logger.debug(f'{__name__} Non-ascii string received: {res}')
+            # logger.error(f'{__name__} Non-ascii string received: {res}')
             print(f'{__name__} Non-ascii string received: {res}')
 
         if check_error:
@@ -232,18 +251,20 @@ class IT6432Connection:
 
         return res
 
-    def query(self, cmd: str, check_error=True) -> str:
+    def query(self, cmd: str, check_error: bool = True) -> str:
         """
         query the current source with any command
 
         Args:
             cmd (str): an SCPI command
-            check_error (bool):
+            check_error (bool, optional): Defaults to True.
+
+        Raises:
+            BaseException: if check_error is true and an error occurred.
 
         Returns:
             str: the answer from the device
         """
-        # more = False
         result = None
         self._write(cmd, check_error=False)
         sleep(0.1)
@@ -271,39 +292,49 @@ class IT6432Connection:
         """returns the device identification information."""
         return self.query('*IDN?').strip('\n')
 
-    def clrOutputProt(self) -> None:
+    def clrOutputProt(self):
         """If output protection was triggered for some reason, clear it."""
         self._write('output:protection:clear')
 
-    def clrErrorQueue(self) -> None:
+    def clrErrorQueue(self):
         """Clear all errors from the instrument error queue"""
         self._write('system:clear')
 
-    def saveSetup(self, n) -> None:
-        """Save current source configuration settings"""
+    def saveSetup(self, n: int):
+        """
+        Save current source configuration settings
+
+        Args:
+            n (int): 0-100
+        """
         self._write(f'*SAV {n}')
 
-    def recallSetup(self, n) -> None:
-        """Recall a saved current source configuration"""
+    def recallSetup(self, n: int):
+        """
+        Recall a saved current source configuration
+
+        Args:
+            n (int): 0-100
+        """
         self._write(f'*RCL {n}')
 
-    def close(self) -> None:
+    def close(self):
         """Closes the socket connection"""
-        self.sock.close()
+        self._sock.close()
 
     # context manager
 
-    def __enter__(self):
-        if not self.connected:
-            self.connect()
-        return self
+    # def __enter__(self):
+    #     if not self.__connected:
+    #         self.connect()
+    #     return self
 
-    def __exit__(self, type, value, traceback):
-        if self.connected:
-            self.sock.close()
-            return not self.connected
-        else:
-            return isinstance(value, TypeError)
+    # def __exit__(self, type, value, traceback):
+    #     if self.__connected:
+    #         self._sock.close()
+    #         return not self.__connected
+    #     else:
+    #         return isinstance(value, TypeError)
 
     #-------------------------------------------------------#
     #------------------ Utility functions ------------------#
@@ -399,31 +430,34 @@ class IT6432Connection:
 
         return messages
 
-    def setMaxCurrVolt(self,  currentLim=5, voltageLim=10, verbose=False) -> None:
+    def setMaxCurrVolt(self,  currentLim: float = 5, voltageLim: float = 10, verbose: bool = False):
         """
         Set maximum current values for each ECB channel, as long as they are under the threshold specified in the API source code.
-        Args:
-        -maxValue
 
-        Returns: error code iff an error occurs
+        Args:
+            currentLim (float, optional): desired maximum current. Defaults to 5.
+            voltageLim (float, optional): desired maximum voltage. Defaults to 10.
+            verbose (bool, optional): print debug messages. Defaults to False.
         """
         if currentLim > self.MAX_CURR:
             self.currentLim = self.MAX_CURR
             if verbose:
-                print('Current cannot be higher than 5.05A')
+                print('Current limit cannot be higher than 5.05A')
+                # logger.debug('Current limit cannot be higher than 5.05A')
         else:
             self.currentLim = currentLim
         if voltageLim > self.MAX_VOLT:
             self.voltageLim = self.MAX_VOLT
             if verbose:
                 print('Voltage cannot be higher than 30V')
+                # logger.debug('Voltage limit cannot be higher than 30V')
         else:
             self.voltageLim = voltageLim
 
         self._write('current:limit:state ON;:voltage:limit:state ON')
         self._write(f'current:limit {self.currentLim};:voltage:limit {self.voltageLim}')
 
-    def setOutputSpeed(self, mode='normal', time=1) -> None:
+    def setOutputSpeed(self, mode: str = 'normal', time: float = 1):
         """
         Set the reaction speed of the output.
 
@@ -443,10 +477,11 @@ class IT6432Connection:
 
     def outputInfo(self) -> str:
         """
-        Returns output type (high or low capacitance) and relay mode.
+        Returns: output type (high or low capacitance) and relay mode (high impedance) and output speed.
         """
         output_type = self.query('output:type?')
         output_mode = self.query('output:relay:mode?')
         output_speed = self.query('output:speed?')
         res = 'type: ' + output_type + '; mode: ' + output_mode + '; speed: ' + output_speed
+
         return res

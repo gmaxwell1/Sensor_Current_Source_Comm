@@ -39,7 +39,7 @@ class MetrolabTHM1176Node(object):
     kwargs:
     - 'block_size': number of measured values to fetch at once. int > 0
     - 'period': trigger period, should be in the interval (122e-6, 2.79)
-    - 'range': measurment range to use. '0.1T', '0.3T', '1T', '3T' are accepted.
+    - 'range': measurement range to use. '0.1T', '0.3T', '1T', '3T' are accepted.
     - 'average': number of measured values to average over. int > 0
     - 'n_digits': number of digits results are rounded to. int > 0
     - 'unit': unit of measured magnetic field. 'T', 'MT', 'UT', 'NT', 'GAUSs', 'KGAUss', 'MGAUss', 'MAHZp' are possible.

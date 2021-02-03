@@ -31,6 +31,17 @@ except ModuleNotFoundError:
 
 
 class voltageRamper(threading.Thread):
+    """
+    A thread that simply runs the function rampVoltage.
+
+    Args:
+        connection (IT6432Connection): Current source object which is to be controlled
+        new_voltage (float): Target voltage
+        new_current (float): Target current
+        threadID (int, optional): number of thread for keeping track of which threads are
+                                    running. Defaults to 0.
+    """
+
     def __init__(
         self,
         connection: IT6432Connection,
@@ -40,16 +51,7 @@ class voltageRamper(threading.Thread):
         step_size=0.01,
         threadID=0
     ):
-        """
-        A thread that simply runs the function rampVoltage.
 
-        Args:
-            connection (IT6432Connection): Current source object which is to be controlled
-            new_voltage (float): Target voltage
-            new_current (float): Target current
-            threadID (int, optional): number of thread for keeping track of which threads are
-                                      running. Defaults to 0.
-        """
         threading.Thread.__init__(self)
 
         self.connection = connection
@@ -396,11 +398,9 @@ def demagnetizeCoils(
         for thread in thread_pool:
             thread.start()
 
-        sign *= -1
-
         for thread in thread_pool:
             thread.join()
-
+        sign *= -1
         sleep(0.1)
 
     disableCurrents(channel_1, channel_2, channel_3)

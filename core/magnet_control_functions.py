@@ -684,6 +684,10 @@ if __name__ == '__main__':
         for k in range(3):
             desCurrents[k] = config[k]
 
+<<<<<<< HEAD
+            for k in range(3):
+                desCurrents[k] = config[k]
+=======
         setCurrents(channel_1, channel_2, channel_3, desCurrents)
         # Let the field stabilize
         sleep(0.5)
@@ -702,6 +706,7 @@ if __name__ == '__main__':
         all_curr_vals.append(np.array(meas_currents))
         # we already know the expected field values
         expected_fields.append(B_vector)
+>>>>>>> central
 
         signs = np.sign(desCurrents)
         # demag = np.array(desCurrents) / (max(desCurrents))
