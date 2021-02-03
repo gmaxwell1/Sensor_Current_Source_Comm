@@ -340,7 +340,7 @@ class IT6432Connection:
     #------------------ Utility functions ------------------#
     #-------------------------------------------------------#
 
-    def getMaxMinOutput(self):
+    def getMaxMinOutput(self) -> tuple:
         """
         Get maximum/minimum current/voltage values for each current channel.
 
@@ -354,7 +354,7 @@ class IT6432Connection:
 
         return float(max_curr), float(min_curr), float(max_volt), float(min_volt)
 
-    def getStatus(self):
+    def getStatus(self) -> dict:
         """
         gets the current status of the current source by sending a query
         for the different status registers. For low-level debugging.
@@ -475,7 +475,7 @@ class IT6432Connection:
         if mode == 'time':
             self._write(f'{basecmd}:time {time}')
 
-    def outputInfo(self):
+    def outputInfo(self) -> str:
         """
         Returns: output type (high or low capacitance) and relay mode (high impedance) and output speed.
         """
