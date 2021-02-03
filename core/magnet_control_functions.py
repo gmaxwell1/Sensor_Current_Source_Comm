@@ -11,13 +11,12 @@
 
 import csv
 import math
+import os
 import sys
 import threading
 from datetime import datetime
 from time import sleep, time
 
-import matplotlib.pyplot as plt
-########## Standard library imports ##########
 import numpy as np
 import pandas as pd
 
@@ -27,7 +26,6 @@ try:
 except ModuleNotFoundError:
     pass
 finally:
-    import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
     from IT6432.it6432connection import IT6432Connection
@@ -661,7 +659,7 @@ if __name__ == '__main__':
     all_curr_vals = []
 
     ##########################################################################
-    inpFile = r'test_sets\expvectors_wholeSphere_magnitude_10mT_size28.csv'
+    inpFile = r'test_sets\vectors_rng987_0-60mT_size25.csv'
     BField = True
     input_list = []
     with open(inpFile, 'r') as f:
@@ -671,40 +669,58 @@ if __name__ == '__main__':
 
     # meas_duration = 22
 
-    # time_estimate = len(input_list) * meas_duration
+    start_time = time()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    with MetrolabTHM1176Node(period=0.01, block_size=30, range='0.3 T', average=1, unit='MT') as node:
-        for i, row in enumerate(input_list):
+    # as node:
+    node = MetrolabTHM1176Node(period=0.01, block_size=30, range='0.3 T', average=1, unit='MT')
+    for i, row in enumerate(input_list):
+        config = np.array(
+            [float(row[0]), float(row[1]), float(row[2])])
 
-            config = np.array(
-                [float(row[0]), float(row[1]), float(row[2])])
+        B_vector = np.array(
+            [float(row[0]), float(row[1]), float(row[2])])
+        config = tr.computeCoilCurrents(B_vector)
 
-            B_vector = np.array(
-                [float(row[0]), float(row[1]), float(row[2])])
-            config = tr.computeCoilCurrents(B_vector)
+        for k in range(3):
+            desCurrents[k] = config[k]
 
+<<<<<<< HEAD
             for k in range(3):
                 desCurrents[k] = config[k]
+=======
+        setCurrents(channel_1, channel_2, channel_3, desCurrents)
+        # Let the field stabilize
+        sleep(0.5)
+        elapsed_time = time() - start_time
+        print(
+            f'\rmeasurement {i + 1}/{len(input_list)}; {elapsed_time:.1f}s so far   ',
+            sep='',
+            end='',
+            flush=True)
+        # collect measured and expected magnetic field (of the specified sensor in measurements)
+        # see measurements.py for more details
+        mean_data, std_data = measure(node, N=10, average=True)
+        meas_currents = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='current')
+        mean_values.append(mean_data)
+        stdd_values.append(std_data)
+        all_curr_vals.append(np.array(meas_currents))
+        # we already know the expected field values
+        expected_fields.append(B_vector)
+>>>>>>> central
 
-            setCurrents(channel_1, channel_2, channel_3, desCurrents)
-            # Let the field stabilize
-            sleep(0.5)
+        signs = np.sign(desCurrents)
+        # demag = np.array(desCurrents) / (max(desCurrents))
+        demagnetizeCoils(channel_1, channel_2, channel_3, current_config=2.5 * signs)
+        sleep(2)
+        mean_data, std_data = measure(node, N=10, average=True)
+        remanence_values.append(mean_data)
 
-            # collect measured and expected magnetic field (of the specified sensor in measurements)
-            # see measurements.py for more details
-            mean_data, std_data = measure(node, N=10, average=True)
-            meas_currents = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='current')
-            mean_values.append(mean_data)
-            stdd_values.append(std_data)
-            all_curr_vals.append(np.array(meas_currents))
-            # we already know the expected field values
-            expected_fields.append(B_vector)
-
-            demagnetizeCoils(channel_1, channel_2, channel_3, current_config=desCurrents)
-            mean_data, std_data = measure(node, N=10, average=True)
-            sleep(0.5)
-            remanence_values.append(mean_data)
+    node.sensor.close()
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    all_curr_vals = np.array(all_curr_vals)
+    mean_values = np.array(mean_values)
+    remanence_values = np.array(remanence_values)
+    expected_fields = np.array(expected_fields)
 
     try:
         # depending on which function in main_menu.py was used to measure
@@ -731,6 +747,6 @@ if __name__ == '__main__':
         output_file_name)
     df.to_csv(file_path, index=False, header=True)
 
-    demagnetizeCoils(channel_1, channel_2, channel_3, all_curr_vals[-1])
+    demagnetizeCoils(channel_1, channel_2, channel_3, [0.5, 0.5, 0.5])
     # end of measurements
     closeConnection(channel_1, channel_2, channel_3)

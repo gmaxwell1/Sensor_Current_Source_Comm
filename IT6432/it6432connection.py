@@ -274,7 +274,7 @@ class IT6432Connection:
 
         return result
 
-    def checkError(self) -> Exception:
+    def checkError(self) -> None:
         """
         Check if an error occurred.
 

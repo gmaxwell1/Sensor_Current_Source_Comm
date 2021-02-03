@@ -1,10 +1,12 @@
 config_files/
 test_sets/
 *.lnk
-model_poly3_latest_B2I_old.sav
-model_poly3_latest_I2B_old.sav
 socket_test*
 pyECB_original
+model_poly3_latest_B2I_old.sav
+model_poly3_latest_I2B_old.sav
+model_poly3_newSensorData_B2I_old.sav
+model_poly3_newSensorData_B2I_old.sav
 
 venvECB_new/
 .env
