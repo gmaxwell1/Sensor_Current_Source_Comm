@@ -27,7 +27,7 @@ except ModuleNotFoundError:
     sys.path.insert(1, path.join(sys.path[0], ".."))
     from IT6432.it6432connection import IT6432Connection
 
-    from core.current_control import currControlThread, currentController
+    # from core.current_control import currControlThread, currentController
 
 
 class voltageRamper(threading.Thread):
@@ -142,8 +142,8 @@ def setCurrents(
     idx_1 = channel_1.channel - 1
     current_1 = (
         signs[idx_1] * desCurrents[idx_1]
-        if abs(desCurrents[idx_1]) <= channel_1.currentLim
-        else channel_1.currentLim
+        if abs(desCurrents[idx_1]) <= channel_1.current_lim
+        else channel_1.current_lim
     )
     # conservative estimation of coil resistance: 0.48 ohm
     v_set_1 = signs[idx_1] * 0.472 * current_1
@@ -160,8 +160,8 @@ def setCurrents(
         idx_2 = channel_2.channel - 1
         current_2 = (
             signs[idx_2] * desCurrents[idx_2]
-            if abs(desCurrents[idx_2]) <= channel_2.currentLim
-            else channel_2.currentLim
+            if abs(desCurrents[idx_2]) <= channel_2.current_lim
+            else channel_2.current_lim
         )
         # conservative estimation of coil resistance: 0.48 ohm
         v_set_2 = signs[idx_2] * 0.472 * current_2
@@ -178,8 +178,8 @@ def setCurrents(
         idx_3 = channel_3.channel - 1
         current_3 = (
             signs[idx_3] * desCurrents[idx_3]
-            if abs(desCurrents[idx_3]) <= channel_3.currentLim
-            else channel_3.currentLim
+            if abs(desCurrents[idx_3]) <= channel_3.current_lim
+            else channel_3.current_lim
         )
         # conservative estimation of coil resistance: 0.48 ohm
         v_set_3 = signs[idx_3] * 0.472 * current_3
@@ -224,13 +224,13 @@ def rampVoltage(
     if connection.query("output?") == "0":
         connection._write("voltage 0V;:output 1")
 
-    if new_current > connection.currentLim:
-        new_current = connection.currentLim
+    if new_current > connection.current_lim:
+        new_current = connection.current_lim
     if new_current < 0.002 or abs(new_voltage) < 0.001:
         new_current = 0.002
         new_voltage = 0
-    if abs(new_voltage) > connection.voltageLim:
-        new_voltage = connection.voltageLim
+    if abs(new_voltage) > connection.voltage_lim:
+        new_voltage = connection.voltage_lim
 
     meas_voltage = getMeasurement(connection, meas_quantity="voltage")[0]
     meas_current = getMeasurement(connection, meas_quantity="current")[0]
@@ -407,9 +407,15 @@ if __name__ == "__main__":
     channel_3 = IT6432Connection(3)
     openConnection(channel_1, channel_2, channel_3)
 
-    setCurrents(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
-    sleep(0.5)
-    demagnetizeCoils(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
+    # setCurrents(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
+    # sleep(15)
+    print(channel_1.getMaxMinOutput())
+    print(channel_2.getMaxMinOutput())
+    print(channel_3.getMaxMinOutput())
+
+    # print(float(channel_1.query('current?')))
+
+    # demagnetizeCoils(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
     # disableCurrents(channel_1, channel_2, channel_3)
 
     closeConnection(channel_1, channel_2, channel_3)

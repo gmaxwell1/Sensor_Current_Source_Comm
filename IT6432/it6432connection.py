@@ -130,8 +130,8 @@ class IT6432Connection:
         # current/voltage limits
         self.MAX_CURR = 5.05
         self.MAX_VOLT = 30
-        self.currentLim = 0
-        self.voltageLim = 0
+        self.current_lim = 0
+        self.voltage_lim = 0
 
     #-----------------------------------------------------#
     #------------------ Basic functions ------------------#
@@ -155,11 +155,12 @@ class IT6432Connection:
             self._sock.settimeout(self._timeout)
 
             limits = self.getMaxMinOutput()
-            self.currentLim = limits[0]
-            self.voltageLim = limits[2]
+            self.current_lim = limits[0]
+            self.voltage_lim = limits[2]
 
         except Exception as exc:
-            # logger.error(f'A problem occured while trying to connect to channel {self.__channel}: {exc}')
+            # logger.error(f'A problem occured while trying to connect to channel
+            # {self.__channel}: {exc}')
             print(f'A problem occured while trying to connect to channel {self.__channel}: {exc}')
 
     @property
@@ -430,32 +431,81 @@ class IT6432Connection:
 
         return messages
 
-    def setMaxCurrVolt(self,  currentLim: float = 5, voltageLim: float = 10, verbose: bool = False):
+    def getMeasurement(self, meas_type: str = "",
+                       meas_quantity: str = "current") -> float:
+        """
+        Get DC current/power/voltage values from this channel
+
+        Args:
+            meas_type (str, optional): Any of the types {"", "acdc", "max", "min"}. These are either
+                                       a DC measurement, an RMS value or minimum/maximum.
+                                       Defaults to "".
+            meas_quantity (str, optional): Any of the types {"current", "voltage", "power"}.
+                                           Defaults to "current".
+
+        Returns:
+            float: measured current
+        """
+        command = "measure:"
+        quantities = ["current", "voltage", "power"]
+        types = ["", "acdc", "max", "min"]
+        if meas_quantity not in quantities:
+            meas_quantity = "current"
+        if meas_type not in types:
+            meas_type = ""
+
+        command += meas_quantity
+        if meas_type != "":
+            command += ":" + meas_type[0]
+        command += "?"
+
+        res = self.query(command)
+        if isinstance(res, list):
+            res = res[0]
+
+        return float(res)
+
+    def outputInfo(self) -> str:
+        """
+        Returns: output type (high or low capacitance) and relay mode (high impedance) and output speed.
+        """
+        output_type = self.query('output:type?')
+        output_mode = self.query('output:relay:mode?')
+        output_speed = self.query('output:speed?')
+        res = 'type: ' + output_type + '; mode: ' + output_mode + '; speed: ' + output_speed
+
+        return res
+
+    def setMaxCurrVolt(
+            self,
+            current_lim: float = 5,
+            voltage_lim: float = 10,
+            verbose: bool = False):
         """
         Set maximum current values for each ECB channel, as long as they are under the threshold specified in the API source code.
 
         Args:
-            currentLim (float, optional): desired maximum current. Defaults to 5.
-            voltageLim (float, optional): desired maximum voltage. Defaults to 10.
+            current_lim (float, optional): desired maximum current. Defaults to 5.
+            voltage_lim (float, optional): desired maximum voltage. Defaults to 10.
             verbose (bool, optional): print debug messages. Defaults to False.
         """
-        if currentLim > self.MAX_CURR:
-            self.currentLim = self.MAX_CURR
+        if current_lim > self.MAX_CURR:
+            self.current_lim = self.MAX_CURR
             if verbose:
                 print('Current limit cannot be higher than 5.05A')
                 # logger.debug('Current limit cannot be higher than 5.05A')
         else:
-            self.currentLim = currentLim
-        if voltageLim > self.MAX_VOLT:
-            self.voltageLim = self.MAX_VOLT
+            self.current_lim = current_lim
+        if voltage_lim > self.MAX_VOLT:
+            self.voltage_lim = self.MAX_VOLT
             if verbose:
                 print('Voltage cannot be higher than 30V')
                 # logger.debug('Voltage limit cannot be higher than 30V')
         else:
-            self.voltageLim = voltageLim
+            self.voltage_lim = voltage_lim
 
         self._write('current:limit:state ON;:voltage:limit:state ON')
-        self._write(f'current:limit {self.currentLim};:voltage:limit {self.voltageLim}')
+        self._write(f'current:limit {self.current_lim};:voltage:limit {self.voltage_lim}')
 
     def setOutputSpeed(self, mode: str = 'normal', time: float = 1):
         """
@@ -474,14 +524,3 @@ class IT6432Connection:
         self._write(f'{basecmd} {mode}')
         if mode == 'time':
             self._write(f'{basecmd}:time {time}')
-
-    def outputInfo(self) -> str:
-        """
-        Returns: output type (high or low capacitance) and relay mode (high impedance) and output speed.
-        """
-        output_type = self.query('output:type?')
-        output_mode = self.query('output:relay:mode?')
-        output_speed = self.query('output:speed?')
-        res = 'type: ' + output_type + '; mode: ' + output_mode + '; speed: ' + output_speed
-
-        return res

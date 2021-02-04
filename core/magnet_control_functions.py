@@ -40,7 +40,7 @@ finally:
 
     import core.field_current_tr as tr
     import core.meas_parallelization as p
-    from core.current_control import currentController
+    from core.current_control import PowerSupplyCommands
     from core.main_comm_new import (closeConnection, demagnetizeCoils,
                                     disableCurrents, getMeasurement,
                                     openConnection, setCurrents)
