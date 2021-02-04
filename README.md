@@ -10,7 +10,7 @@ After cloning this repository follow these steps (this is for Windows, but it sh
 3. use the command `python -m venv [environment]`, replace [environment] with any name you like
 4. activate the virtual environment by typing `[environment]\Scripts\activate`
 5. make sure you have the latest vesion of pip: `python -m pip install --upgrade pip`
-6. install required packages using `pip install ...`: `numpy, pyserial, pythonnet, matplotlib, pandas, pyUSB, python-usbtmc, scikit-learn`
+6. install required packages using `pip install ...`: `numpy, pyserial, pythonnet, matplotlib, pandas, pyUSB, python-usbtmc, scikit-learn, pyqt5`
 
 * **Prepare devices for use (Windows):**
 1. If using the Metrolab sensor: Plug in the device and install `libusb-win32` driver using [Zadig](https://zadig.akeo.ie/).
