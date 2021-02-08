@@ -48,7 +48,6 @@ finally:
                                             saveDataPoints,
                                             timeResolvedMeasurement)
 
-
 ##########  Current parameters ##########
 desCurrents = [0, 0, 0]  # in amps
 
@@ -120,9 +119,12 @@ def gridSweep(
         config = np.array(
             [float(row[0]), float(row[1]), float(row[2])])
 
+        remanence_values, _ = measure(node, N=10, average=True)
+
         if BField:
             B_vector = np.array(
                 [float(row[0]), float(row[1]), float(row[2])])
+            B_vector -= remanence_values
             config = tr.computeCoilCurrents(B_vector)
 
         for k in range(3):
@@ -338,8 +340,8 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(p.return_dict(), saveLoc, now=True)
 
-    # if demagnetize:
-    #     demagnetizeCoils()
+    if demagnetize:
+        demagnetizeCoils(channel_1, channel_2, channel_3, config_list[-1])
     disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
 
@@ -531,8 +533,13 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(p.return_dict, saveLoc, now=True)
 
-    # if demagnetize:
-    #     demagnetizeCoils()
+    if demagnetize:
+        demagnetizeCoils(
+            channel_1, channel_2, channel_3, [
+                float(
+                    channel_1.query('current?')), float(
+                    channel_2.query('current?')), float(
+                    channel_3.query('current?'))])
     disableCurrents(channel_1, channel_2, channel_3)
     closeConnection(channel_1, channel_2, channel_3)
 

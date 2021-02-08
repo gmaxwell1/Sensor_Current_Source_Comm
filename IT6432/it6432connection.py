@@ -42,6 +42,10 @@ class WrongUnitsForParam(ErrorBase):
     pass
 
 
+class ParamTypeError(ErrorBase):
+    pass
+
+
 class InvalidCommand(ErrorBase):
     pass
 
@@ -99,6 +103,7 @@ class IT6432Connection:
         errorClasses = {
             120: ParameterOverflow,
             130: WrongUnitsForParam,
+            140: ParamTypeError,
             170: InvalidCommand,
             -101: InvalidCharacter,
             -102: SyntaxErrorSCPI,

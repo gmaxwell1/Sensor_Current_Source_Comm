@@ -146,13 +146,14 @@ def callRunCurrents():
             char = "x"
 
     inp5 = input("measure temperature? (y/n): ")
+    inp6 = input("demagnetize? (y/n): ")
 
     subdir = "default_location"
     if inp0 == "":
         subdir = input("Which subdirectory should measurements be saved to? ")
 
     runCurrents(
-        configs, timers, subdir=subdir, demagnetize=False, temp_meas=(inp5 == "y")
+        configs, timers, subdir=subdir, demagnetize=(inp6 == "y"), temp_meas=(inp5 == "y")
     )
 
 
@@ -186,12 +187,13 @@ def callGenerateVectorField():
             char = "x"
 
     inp5 = input("measure temperature? (y/n): ")
+    inp6 = input("demagnetize? (y/n): ")
 
     subdir = "default_location"
     if inp0 == "":
         subdir = input("Which subdirectory should measurements be saved to? ")
 
-    generateMagneticField(vector, timers, subdir, False, (inp5 == "y"))
+    generateMagneticField(vector, timers, subdir, (inp6 == "y"), (inp5 == "y"))
 
 
 def feedbackMode():

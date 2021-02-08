@@ -303,4 +303,4 @@ def saveDataPoints(I, mean_data, std_data, expected_fields,
 
 if __name__ == '__main__':
 
-    gotoPosition(1.3)
+    gotoPosition(20, 0, 20)

@@ -402,20 +402,20 @@ def demagnetizeCoils(
 
 ########## test stuff out ##########
 if __name__ == "__main__":
-    channel_1 = IT6432Connection(1)
+    # channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
     channel_3 = IT6432Connection(3)
-    openConnection(channel_1, channel_2, channel_3)
+    openConnection(channel_2, channel_3)
 
     # setCurrents(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
     # sleep(15)
-    print(channel_1.getMaxMinOutput())
-    print(channel_2.getMaxMinOutput())
-    print(channel_3.getMaxMinOutput())
+
+    print(channel_2._write('output:relay:mode HIGH'))
+    print(channel_3.outputInfo())
 
     # print(float(channel_1.query('current?')))
 
     # demagnetizeCoils(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
     # disableCurrents(channel_1, channel_2, channel_3)
 
-    closeConnection(channel_1, channel_2, channel_3)
+    closeConnection(channel_2, channel_3)
