@@ -246,7 +246,7 @@ if __name__ == '__main__':
     # print('Lookup table:')
     # for key in LookupTable:
     #     print(f'{key} = {LookupTable[key]}')
-    B1 = computeMagneticFieldVector(theta=0, phi=0, magnitude=50)
+    B1 = computeMagneticFieldVector(theta=30, phi=20, magnitude=40)
     # B1 = np.array([-46.7, -11, 23])
     print(f'Bx = {B1[0]}mT, By = {B1[1]}mT, Bz = {B1[2]}mT')
     currents = computeCoilCurrents(B1)

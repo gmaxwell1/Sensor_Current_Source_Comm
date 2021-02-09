@@ -219,10 +219,18 @@ def rampVoltage(
     logging.basicConfig(filename="voltage_ramp.log", level=logging.DEBUG, force=True)
     logging.info("now ramping current in channel %s", connection.channel)
 
+    if connection.channel != 2:
+        postfix_v = "V"
+        postfix_i = "A"
+    else:
+        postfix_v = ""
+        postfix_i = ""
+
     connection.clrOutputProt()
 
     if connection.query("output?") == "0":
-        connection._write("voltage 0V;:output 1")
+        connection._write("voltage 0" + postfix_v)
+        connection._write("output 1")
 
     if new_current > connection.current_lim:
         new_current = connection.current_lim
@@ -253,7 +261,7 @@ def rampVoltage(
         else:
             repeat_count = 0
 
-    connection._write(f"current {new_current}A")
+    connection._write(f"current {new_current}" + postfix_i)
 
     if new_current < 0.002 or abs(new_voltage) < 0.001:
         connection._write("output 0")
@@ -288,17 +296,21 @@ def rampVoltageSimple(
         step_size (float, optional): Defaults to 0.01.
         threshold (float, optional): Defaults to 0.02.
     """
+    if connection.channel != 2:
+        postfix_v = "V"
+    else:
+        postfix_v = ""
     threshold = 2 * step_size
-    connection._write(f"voltage {set_voltage}V")
+    connection._write(f"voltage {set_voltage}" + postfix_v)
     diff_v = new_voltage - set_voltage
     sign = np.sign(diff_v)
     while abs(diff_v) >= threshold:
         set_voltage = set_voltage + sign * step_size
-        connection._write(f"voltage {set_voltage}V")
+        connection._write(f"voltage {set_voltage}" + postfix_v)
         diff_v = new_voltage - set_voltage
         sign = np.sign(diff_v)
 
-    connection._write(f"voltage {new_voltage}V")
+    connection._write(f"voltage {new_voltage}" + postfix_v)
 
 
 def getMeasurement(
@@ -367,7 +379,7 @@ def demagnetizeCoils(
     bounds = 0.475 * np.outer(current_config, np.exp(-steps))
 
     channel_1._write('current 5.01A')
-    channel_2._write('current 5.01A')
+    channel_2._write('current 5.01')
     channel_3._write('current 5.01A')
 
     thread_pool = [None, None, None]
@@ -402,20 +414,26 @@ def demagnetizeCoils(
 
 ########## test stuff out ##########
 if __name__ == "__main__":
-    # channel_1 = IT6432Connection(1)
+    channel_1 = IT6432Connection(1)
     channel_2 = IT6432Connection(2)
     channel_3 = IT6432Connection(3)
-    openConnection(channel_2, channel_3)
+    openConnection(channel_1, channel_2, channel_3)
 
     # setCurrents(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
     # sleep(15)
 
-    print(channel_2._write('output:relay:mode HIGH'))
-    print(channel_3.outputInfo())
+    # channel_2._write('voltage:prot 9.05')
+    # channel_2._write('curr 1')
+    # rampVoltage(channel_2, 1.7, 3.4, 0.05)
+    # print(channel_1.outputInfo())
+    # channel_2.saveSetup(0)
+    # channel_3.saveSetup(0)
+
+    # print(channel_3.outputInfo())
 
     # print(float(channel_1.query('current?')))
 
     # demagnetizeCoils(channel_1, channel_2, channel_3, np.array([1, 1, 1]))
     # disableCurrents(channel_1, channel_2, channel_3)
 
-    closeConnection(channel_2, channel_3)
+    closeConnection(channel_1, channel_2, channel_3)

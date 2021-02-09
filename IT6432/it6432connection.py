@@ -6,7 +6,7 @@
 #         gmaxwell at student.ethz.ch
 #
 # Date: 15.01.2021
-# latest update: 29.01.2021
+# latest update: 09.02.2021
 
 import socket
 from time import sleep, time
@@ -70,6 +70,10 @@ class StringDataError(ErrorBase):
     pass
 
 
+class FrontPanelTimeout(ErrorBase):
+    pass
+
+
 class IT6432Connection:
     """
     An interface for communication with IT 6432 current sources.
@@ -105,6 +109,7 @@ class IT6432Connection:
             130: WrongUnitsForParam,
             140: ParamTypeError,
             170: InvalidCommand,
+            224: FrontPanelTimeout,
             -101: InvalidCharacter,
             -102: SyntaxErrorSCPI,
             -150: StringDataError,

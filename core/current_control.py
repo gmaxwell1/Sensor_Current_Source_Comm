@@ -126,7 +126,10 @@ class PowerSupplyCommands(object):
         bounds = 0.475 * np.outer(current_config, np.exp(-steps))
 
         for power_supply in self.power_supplies:
-            power_supply._write('current 5.01A')
+            if power_supply.channel == 2:
+                power_supply._write('current 5.01')
+            else:
+                power_supply._write('current 5.01A')
 
         thread_pool = [None, None, None]
         target_func = rampVoltageSimple
@@ -223,17 +226,21 @@ def rampVoltageSimple(
         new_voltage (float): Target voltage.
         step_size (float, optional): Defaults to 0.01.
     """
+    if connection.channel != 2:
+        postfix_v = "V"
+    else:
+        postfix_v = ""
     threshold = 2 * step_size
-    connection._write(f"voltage {set_voltage}V")
+    connection._write(f"voltage {set_voltage}" + postfix_v)
     diff_v = new_voltage - set_voltage
     sign = np.sign(diff_v)
     while abs(diff_v) >= threshold:
         set_voltage = set_voltage + sign * step_size
-        connection._write(f"voltage {set_voltage}V")
+        connection._write(f"voltage {set_voltage}" + postfix_v)
         diff_v = new_voltage - set_voltage
         sign = np.sign(diff_v)
 
-    connection._write(f"voltage {new_voltage}V")
+    connection._write(f"voltage {new_voltage}" + postfix_v)
 
 
 def rampVoltage(
@@ -259,8 +266,15 @@ def rampVoltage(
 
     connection.clrOutputProt()
 
+    if connection.channel != 2:
+        postfix_v = "V"
+        postfix_i = "A"
+    else:
+        postfix_v = ""
+        postfix_i = ""
+
     if connection.query("output?") == "0":
-        connection._write("voltage 0V;:output 1")
+        connection._write("voltage 0" + postfix_v + ";:output 1")
 
     if new_current > connection.current_lim:
         new_current = connection.current_lim
@@ -291,7 +305,7 @@ def rampVoltage(
         else:
             repeat_count = 0
 
-    connection._write(f"current {new_current}A")
+    connection._write(f"current {new_current}" + postfix_i)
 
     if new_current < 0.002 or abs(new_voltage) < 0.001:
         connection._write("output 0")
