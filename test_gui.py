@@ -157,15 +157,23 @@ class VectorMagnetDialog(QWidget):
             self.input_polar_coords[i].returnPressed.connect(self._onSetValues)
 
         upperLayout.addLayout(entriesLayout)
+        # add a label to display set magnetic field values
+        setBField = QHBoxLayout()
+        self.label_BField = QLabel('')
+        self.label_BField.setText('B field setpoint:\n' +
+                                  f'|\U0001D435| = 0.0 mT\n' +
+                                  f'\U0001D717 = 0.0°\n' +
+                                  f'\U0001D719 = 0.0°\n')
+        setBField.addWidget(self.label_BField)
 
+        upperLayout.addLayout(setBField)
+        # add a label to display measured current values
         currentsLayout = QHBoxLayout()
         self.label_currents = QLabel('')
-        text = 'actual currents:\n' + \
-            f'\U0001D43C\u2081 = 0.000A\n' + \
-            f'\U0001D43C\u2082 = 0.000A\n' + \
-            f'\U0001D43C\u2083 = 0.000A\n'
-
-        self.label_currents.setText(text)
+        self.label_currents.setText('actual currents:\n' +
+                                    f'\U0001D43C\u2081 = 0.000A\n' +
+                                    f'\U0001D43C\u2082 = 0.000A\n' +
+                                    f'\U0001D43C\u2083 = 0.000A\n')
         currentsLayout.addWidget(self.label_currents)
 
         upperLayout.addLayout(currentsLayout)
@@ -203,16 +211,6 @@ class VectorMagnetDialog(QWidget):
         fieldLayout.addWidget(self.lab_field_status)
         generalLayout.addLayout(fieldLayout)
 
-        # add a label to allow displaying set current values
-
-        # self.label_currents = QLabel('')
-        # text = 'actual currents:\n' + \
-        #     f'\U0001D43C\u2081 = 0.000A\n' + \
-        #     f'\U0001D43C\u2082 = 0.000A\n' + \
-        #     f'\U0001D43C\u2083 = 0.000A\n'
-
-        # self.label_currents.setText(text)
-
         # add checkbox to enable/disable demagnetization
         self.check_demag = QCheckBox('demagnetize')
 
@@ -244,6 +242,11 @@ class VectorMagnetDialog(QWidget):
             self.field_coords = [float(coords[0]), float(coords[1]), float(coords[2])]
             self.msg_values.setText('')
             self.btn_set_field.setEnabled(True)
+
+            self.label_BField.setText('B field setpoint:\n' +
+                                      f'|\U0001D435| = {self.field_coords[0]:.3f} mT\n' +
+                                      f'\U0001D717 = {self.field_coords[1]}°\n' +
+                                      f'\U0001D719 = {self.field_coords[2]}°\n')
 
             if self.magnet_is_on:
                 self._SwitchOnField()
@@ -361,22 +364,41 @@ class VectorMagnetDialog(QWidget):
             self._DisplayCurrents()
             sleep(0.8)
 
-    def _setMagField(self, magnitude: float, theta: float, phi: float, demagnetize: bool):
-        print(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
+    def contStatusFetch(self):
 
-        # use self.msg_magnet.setText() to output any error messages
-        # self.msg_magnet.setText()
+        important_msgs = ['QER0', 'QER1', 'QER3', 'QER4', 'QER5', 'ESR3', 'OSR1']
+
+        while self.magnet_is_on:
+            message_dicts = []
+            for i in range(3):
+                message_dicts.append(self.commander.power_supplies[i].getStatus())
+
+                for key in important_msgs:
+                    if key in message_dicts[i].keys():
+                        self.msg_values.setText('%s - on channel %d' % (message_dicts[i][key], i))
+
+            sleep(5)
+
+    def _setMagField(self, magnitude: float, theta: float, phi: float, demagnetize: bool):
+        self.msg_values.setText(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
+
         # get magnetic field in Cartesian coordinates
         B_fieldVector = computeMagneticFieldVector(magnitude, theta, phi)
         currents = computeCoilCurrents(B_fieldVector)
 
-        if demagnetize:
-            self.msg_values.setText('Demagnetizing...')
-            starting_currents = self.commander.setCurrentValues
-            self.commander.demagnetizeCoils(starting_currents)
+        try:
+            if demagnetize:
+                self.msg_values.setText('Demagnetizing...')
+                starting_currents = self.commander.setCurrentValues
+                self.commander.demagnetizeCoils(starting_currents)
+                self.commander.setCurrents(des_currents=currents)
+        except BaseException:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
-        self.commander.setCurrents(des_currents=currents)
-        self.msg_values.setText('Currents have been set.')
+        else:
+            self.msg_values.setText('Currents have been set.')
 
     def _disableField(self, demagnetize: bool):
         print('do stuff to disable field')
@@ -384,7 +406,13 @@ class VectorMagnetDialog(QWidget):
         if demagnetize:
             self.msg_values.setText('Demagnetizing...')
             starting_currents = self.commander.setCurrentValues
-            self.commander.demagnetizeCoils(starting_currents)
+            try:
+                self.commander.demagnetizeCoils(starting_currents)
+            except BaseException:
+                traceback.print_exc()
+                exctype, value = sys.exc_info()[:2]
+                self.updateErrorMessage((exctype, value, traceback.format_exc()))
+
         else:
             self.commander.disableCurrents()
             self.msg_values.setText('Power supplies ready.')
@@ -395,8 +423,10 @@ class VectorMagnetDialog(QWidget):
         try:
             for i, psu in enumerate(self.commander.power_supplies):
                 currents[i] = psu.getMeasurement(meas_quantity='current')
-        except BaseException as e:
-            pass
+        except BaseException:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
         return currents
 
