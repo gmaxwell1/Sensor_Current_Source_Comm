@@ -8,16 +8,14 @@
 #         nmeinhar at student.ethz.ch, gmaxwell at student.ethz.ch
 #
 # Date: 20.10.2020
-# latest update: 08.01.2021
+# latest update: 12.02.2021
 
 import os
 import threading
 from datetime import datetime
-# import serial
 from time import sleep, time
 
 import matplotlib.pyplot as plt
-########## Standard library imports ##########
 import numpy as np
 import pandas as pd
 
@@ -36,8 +34,8 @@ finally:
 
     import core.field_current_tr as tr
 
-########## sensor cube/Conexcc ports ##########
-# port_sensor = 'COM3'
+########## Conexcc ports ##########
+
 z_COM_port = 'COM6'  # z-coordinate controller
 y_COM_port = 'COM5'
 x_COM_port = 'COM4'
@@ -79,7 +77,7 @@ def newMeasurementFolder(defaultDataDir='data_sets', sub_dir_base='z_field_meas'
     return sub_dirname, dataDir
 
 
-def gotoPosition(meas_height=1.3, meas_y=6.6, meas_x=7.2):
+def gotoPosition(meas_x=11, meas_y=4, meas_height=11.8):
     """
     move the stage into position to measure with the sensor.
     Note: Be sure that the position parameters here correspond to the actual setup
@@ -215,14 +213,11 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
         node.stop = True
         thread.join()
         # Sensor coordinates to preferred coordinates transformation
-        xValues = np.array(node.data_stack['Bz'])
-        #xOffset = 0.55
-        xValues = -xValues  # np.subtract(-xValues, xOffset)
-        # print
+        xValues = np.array(node.data_stack['Bx'])
+        xValues = -xValues
         # Sensor coordinates to preferred coordinates transformation, offset correction
-        yValues = np.array(node.data_stack['Bx'])
+        yValues = np.array(node.data_stack['Bz'])
         #yOffset = 2.40
-        yValues = -yValues  # np.subtract(-yValues, yOffset)
         # Sensor coordinates to preferred coordinates transformation, offset correction
         zValues = node.data_stack['By']
         # zValues = np.subtract(zValues, -1.11)
@@ -232,8 +227,6 @@ def timeResolvedMeasurement(block_size=20, period=0.01, average=5, duration=10):
         t_offset = timeline[0]
         for ind in range(len(timeline)):
             timeline[ind] = round(timeline[ind] - t_offset, 3)
-
-        # node.data_stack['Timestamp'] = timeline
 
     try:
         if (len(node.data_stack['Bx']) != len(timeline) or len(node.data_stack['By']) != len(
@@ -303,4 +296,4 @@ def saveDataPoints(I, mean_data, std_data, expected_fields,
 
 if __name__ == '__main__':
 
-    gotoPosition(20, 0, 20)
+    gotoPosition(11.8, 4, 11)

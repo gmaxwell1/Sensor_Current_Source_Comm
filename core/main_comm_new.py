@@ -8,6 +8,11 @@
 # Date: 13.01.2021
 # latest update: 25.01.2021
 
+"""
+    This code is obsolete as of 12.02.2021.
+    It is only in the repository to show examples and avoid dependency problems.
+"""
+
 import csv
 import logging
 import math

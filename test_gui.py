@@ -350,13 +350,11 @@ class VectorMagnetDialog(QWidget):
                 f'\U0001D43C\u2081 = {currents[0]:.3f}A\n' + \
                 f'\U0001D43C\u2082 = {currents[1]:.3f}A\n' + \
                 f'\U0001D43C\u2083 = {currents[2]:.3f}A\n'
-
         else:
             text = 'actual currents:\n' + \
                 f'\U0001D43C\u2081 = 0.000A\n' + \
                 f'\U0001D43C\u2082 = 0.000A\n' + \
                 f'\U0001D43C\u2083 = 0.000A\n'
-
         self.label_currents.setText(text)
 
     def contCurrentFetch(self):
@@ -380,8 +378,8 @@ class VectorMagnetDialog(QWidget):
             sleep(5)
 
     def _setMagField(self, magnitude: float, theta: float, phi: float, demagnetize: bool):
-        self.msg_values.setText(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
 
+        self.msg_values.setText(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
         # get magnetic field in Cartesian coordinates
         B_fieldVector = computeMagneticFieldVector(magnitude, theta, phi)
         currents = computeCoilCurrents(B_fieldVector)
@@ -391,7 +389,8 @@ class VectorMagnetDialog(QWidget):
                 self.msg_values.setText('Demagnetizing...')
                 starting_currents = self.commander.setCurrentValues
                 self.commander.demagnetizeCoils(starting_currents)
-                self.commander.setCurrents(des_currents=currents)
+
+            self.commander.setCurrents(des_currents=currents)
         except BaseException:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
