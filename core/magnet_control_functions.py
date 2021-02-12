@@ -60,10 +60,11 @@ def gridSweep(
         node: MetrolabTHM1176Node,
         inpFile=r'config_files\configs_numvals2_length4.csv',
         datadir='config_tests',
-        factor=0,
+        factor=1,
+        ramp_steps=5,
         BField=False,
         demagnetize=False,
-        today=True,
+        sub_remanence=False,
         temp_meas=True):
     """
     Reads current configurations/values from a csv file, depending on the file the configurations need to be multiplied by a current,
@@ -76,16 +77,16 @@ def gridSweep(
         inpFile (str): file path to the csv file with a list of current configs/magnetic field vectors to be read in.
         datadir (str): directory where results will be saved.
         factor (int, optional): factor to multiply current configs by. Defaults to 1.
-        BField (bool, optional): if the csv file being read in contains a list of B vectors (sphrerical), this should be true. default: False
-        demagnetize (bool, optional): If true, demagnetization protocol will run after each vector is tested. default: False
-        today (bool, optional): today's date will be included in the output directory name. default: True
+        ramp_steps (int, optional): Number of steps to make ramping up the current. Default: 5.
+        BField (bool, optional): if the csv file being read in contains a list of B vectors (sphrerical), this should be true. Default: False.
+        demagnetize (bool, optional): If true, demagnetization protocol will run after each vector is tested. Default: False.
+        sub_remanence (bool, optional): Subtract remanent field vectorially from desired field if true. Default: False.
+        temp_meas (bool, optional): Whether or not to measure temperature during B field measurement. Default: True.
     """
     global desCurrents
 
-    channel_1 = IT6432Connection(1)
-    channel_2 = IT6432Connection(2)
-    channel_3 = IT6432Connection(3)
-    openConnection(channel_1, channel_2, channel_3)
+    psu = PowerSupplyCommands(ramp_steps)
+    psu.openConnection()
 
     # initialization of all arrays
     # all_curr_steps = np.linspace(start_val, end_val, steps)
@@ -119,18 +120,27 @@ def gridSweep(
         config = np.array(
             [float(row[0]), float(row[1]), float(row[2])])
 
-        remanence_values, _ = measure(node, N=10, average=True)
+        if sub_remanence:
+            remanence_values, _ = measure(node, N=10, average=True)
 
         if BField:
             B_vector = np.array(
                 [float(row[0]), float(row[1]), float(row[2])])
-            B_vector -= remanence_values
+            # we already know the expected field values
+            expected_fields.append(B_vector)
+            if sub_remanence:
+                B_vector -= remanence_values
             config = tr.computeCoilCurrents(B_vector)
+
+        else:
+            # estimate of resulting B field
+            B_expected = tr.computeMagField(config * factor, windings)
+            expected_fields.append(B_expected)
 
         for k in range(3):
             desCurrents[k] = config[k] * factor
 
-        setCurrents(channel_1, channel_2, channel_3, desCurrents)
+        psu.setCurrents(desCurrents)
         # Let the field stabilize
         sleep(2)
 
@@ -145,21 +155,16 @@ def gridSweep(
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
         mean_data, std_data = measure(node, N=10, average=True)
-        meas_currents = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='current')
-        # meas_power = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='power')
+        meas_currents = []
+        for i in range(3):
+            meas_currents.append(psu.power_supplies[i].getMeasurement(meas_quantity='current'))
+
         mean_values.append(mean_data)
         stdd_values.append(std_data)
         all_curr_vals.append(np.array(meas_currents))
-        # we already know the expected field values
-        if BField:
-            expected_fields.append(B_vector)
-        else:
-            # estimate of resulting B field
-            B_expected = tr.computeMagField(config * factor, windings)
-            expected_fields.append(B_expected)
 
         if demagnetize:
-            demagnetizeCoils(channel_1, channel_2, channel_3, current_config=desCurrents)
+            psu.demagnetizeCoils(current_config=desCurrents)
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     if temp_meas:
         # save temperature measurements
@@ -173,20 +178,17 @@ def gridSweep(
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
     # folder,
-    if today:
-        now = datetime.now().strftime('%y_%m_%d')
-        filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}_{now}'
-    else:
-        filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}'
+    now = datetime.now().strftime('%y_%m_%d')
+    filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{now}_{datadir}'
+
     # saving data section (prepared for plotting)
     saveDataPoints((np.array(all_curr_vals)), np.array(mean_values),
                    np.array(stdd_values), np.array(expected_fields), filePath, fileprefix)
 
     if demagnetize:
-        demagnetizeCoils(channel_1, channel_2, channel_3, all_curr_vals[-1])
+        psu.demagnetizeCoils(all_curr_vals[-1])
     # end of measurements
-    disableCurrents(channel_1, channel_2, channel_3)
-    closeConnection(channel_1, channel_2, channel_3)
+    psu.closeConnection()
 
 
 def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False, temp_meas=False):

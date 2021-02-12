@@ -36,14 +36,14 @@ finally:
 # set measurement parameters and folder name
 sampling_size = 20  # number of measurements per sensor for averaging
 
-directory = r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\2d_scans_different_fields\set7'
+directory = r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\2d_scans_different_fields\set9'
 
 # number of grid points per dimension
-grid_number = 16
+grid_number = 10
 
 # %%
 # initialize actuators
-init_pos = np.array([11, 4, 11.8])
+init_pos = np.array([10.5, 3.5, 11.8])
 # ports for Magnebotix PC
 COM_ports = ['COM4', 'COM5', 'COM6']
 CC_X, CC_Y, CC_Z = setup(init_pos, COM_ports=COM_ports)
@@ -58,8 +58,8 @@ CC_X, CC_Y, CC_Z = setup(init_pos, COM_ports=COM_ports)
 
 # %%
 # set the bounds for x and y that are used for the scan
-limits_x = [7, 15]
-limits_y = [0, 8]
+limits_x = [10, 11]
+limits_y = [3, 4]
 
 # set the bounds for x and y that are used for the scan, relative to mid position
 # mid = [7.8866, 0.0166]

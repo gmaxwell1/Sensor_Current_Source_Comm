@@ -144,7 +144,7 @@ def computeCoilCurrents(B_fieldVector):
     Returns:
         Vector of 3 current values, as a np.array, units: [A]
     """
-    filename = r'fitting_parameters\model_poly3_final_B2I.sav'
+    filename = r'fitting_parameters\model_poly3_QSM_final_B2I.sav'
     # load the model from disk
     [loaded_model, loaded_poly] = pickle.load(open(filename, 'rb'))
     # preprocess test vectors, st. they have correct shape for model
@@ -168,7 +168,7 @@ def computeMagField(currVector):
     Returns:
         Vector of 3 B field components (Bx,By,Bz), as a np.array, units: [mT]
     """
-    filename = r'fitting_parameters\model_poly3_final_I2B.sav'
+    filename = r'fitting_parameters\model_poly3_QSM_final_I2B.sav'
 
     # load the model from disk
     [loaded_model, loaded_poly] = pickle.load(open(filename, 'rb'))
