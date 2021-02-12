@@ -67,7 +67,7 @@ limits_y = [0, 8]
 # limits_x = [mid[0] - distance, mid[0] + distance]
 # limits_y = [0, 4]
 # set currents in coils
-currentConfig = [0, 1, 0]
+currentConfig = [1, 1, 1]
 # integer value, mA
 currentStrength = 2
 

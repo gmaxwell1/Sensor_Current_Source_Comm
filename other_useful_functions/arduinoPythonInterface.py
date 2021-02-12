@@ -1,23 +1,24 @@
 """
 Script for communication with Arduino Uno using standard serial protocol. A sketch needs
-to be uploaded to the board for communication to be possible. Data is simply written to/
-fetched from the serial port, so this script is mainly good for obtaining data from the 
-Arduino/whatever it is connected to.
-Mainly for getting temperature measurements from ADT7410 sensors through the arduino.
+to be uploaded to the board for communication to be possible (specifically
+.\other_useful_functions\Arduino\). Data is simply written to/fetched from the serial port,
+so this script is mainly good for obtaining data from the Arduino/whatever it is connected to.
+Used for getting temperature measurements from ADT7410 sensors through the arduino.
 
 Author: Maxwell Guerne-Kieferndorf
 Date: 04.12.2020
 
 """
-# standard libs
-import serial
-import time
-from datetime import datetime
 import os
 import sys
 import threading
+import time
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
+# standard libs
+import serial
 
 try:
     from other_useful_functions.general_functions import ensure_dir_exists
@@ -26,10 +27,9 @@ except ModuleNotFoundError:
     from other_useful_functions.general_functions import ensure_dir_exists
 
 
-
-
 class ArduinoUno(serial.Serial):
     fetch_kinds = ['Timestamp', 'Sensor 1 Temp', 'Sensor 2 Temp', 'Sensor 3 Temp']
+
     def __init__(self, port):
         # Arduino Uno serial port
         self.serialPort = port
@@ -50,7 +50,7 @@ class ArduinoUno(serial.Serial):
         newValue = 0
         while newValue != '':
             newValue = input('Enter 0 or 1 to turn LED on or off or enter to exit.\n')
-            
+
             if newValue == '0':
                 self.board.write(b'0')
                 time.sleep(1)
@@ -59,7 +59,6 @@ class ArduinoUno(serial.Serial):
                 time.sleep(1)
             else:
                 time.sleep(1)
-            
 
     def getTemperatureMeasurements(self, print_meas=True):
         """
@@ -74,21 +73,22 @@ class ArduinoUno(serial.Serial):
         self.stop = False
         times = []
         temps = [[], [], []]
-        
+
         # A synchronisation string containing the characters tx is sent before each set of measurements,
         # we ensure correct reading of the measurements by waiting for this string
         while str(self.board.readline()).strip('b\'\\rn') != 'tx':
             pass
-                    
+
         while not self.stop:
-            # A synchronisation string containing the characters tx is sent before each set of measurements
+            # A synchronisation string containing the characters tx is sent before
+            # each set of measurements
             tx = self.board.readline()
             if str(tx).strip('b\'\\rn') == 'tx':
                 rawData1 = self.board.readline()
                 rawData2 = self.board.readline()
                 rawData3 = self.board.readline()
                 rawData4 = self.board.readline()
-            
+
                 timeStamp = str(rawData1).strip('b\'\\rn')
                 temp1 = str(rawData2).strip('b\'\\rn')
                 temp2 = str(rawData3).strip('b\'\\rn')
@@ -98,27 +98,27 @@ class ArduinoUno(serial.Serial):
                     temps[0].append(float(temp1) / 128)
                     temps[1].append(float(temp2) / 128)
                     temps[2].append(float(temp3) / 128)
-                    
+
                     if print_meas:
                         # display current temperature measurement, time
                         print(f'\rtime: {float(timeStamp) / 1000:.2f} s, Temperature measured on sensor 1: {float(temp1) / 128:.2f} °C,'
-                            f'sensor 2: {float(temp2) / 128:.2f} °C, sensor 3: {float(temp3) / 128:.2f} °C', sep='', end='', flush=True)
-                except:
+                              f'sensor 2: {float(temp2) / 128:.2f} °C, sensor 3: {float(temp3) / 128:.2f} °C', sep='', end='', flush=True)
+                except BaseException:
                     print(rawData1, rawData2, rawData3, rawData4)
-            
-        
+
         if self.stop:
             print('\nMeasurement finished...')
-                
+
             self.data_stack[self.fetch_kinds[0]] = times
             self.data_stack[self.fetch_kinds[1]] = temps[0]
             self.data_stack[self.fetch_kinds[2]] = temps[1]
             self.data_stack[self.fetch_kinds[3]] = temps[2]
-            
-            if (len(self.data_stack['Sensor 1 Temp']) != len(times) or len(self.data_stack['Sensor 2 Temp']) != len(times) or len(self.data_stack['Sensor 3 Temp']) != len(times)):
+
+            if (len(self.data_stack['Sensor 1 Temp']) != len(times) or len(self.data_stack['Sensor 2 Temp']) != len(
+                    times) or len(self.data_stack['Sensor 3 Temp']) != len(times)):
                 print("Warning: There may be some missing values!")
-    
-    
+
+
 def saveTempData(dataset, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\2_Misc_Code\Temperature Sensors\ADT7410_temperature_measurements\Measurement_over_time',
                  filename_suffix='temp_meas'):
     '''
@@ -128,9 +128,9 @@ def saveTempData(dataset, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_
     df = None
     if isinstance(dataset, dict):
         df = pd.DataFrame(dataset)
-        
+
     ensure_dir_exists(directory)
-    
+
     now = datetime.now().strftime('%y_%m_%d_%H-%M-%S')
     output_file_name = '{}_{}.csv'.format(now, filename_suffix)
     file_path = os.path.join(directory, output_file_name)
@@ -138,19 +138,22 @@ def saveTempData(dataset, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_
 
 
 if __name__ == "__main__":
-    
+
     dataset_name = 'water_temp_at_5A_nocooling'
     duration = 2000
-    
+
     arduino = ArduinoUno('COM7')
     measure = threading.Thread(target=arduino.getTemperatureMeasurements)
     measure.start()
     time.sleep(duration)
     arduino.stop = True
     measure.join()
-    
-    saveTempData(arduino.data_stack, directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements\water_temp', filename_suffix=dataset_name)
-    
+
+    saveTempData(
+        arduino.data_stack,
+        directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements\water_temp',
+        filename_suffix=dataset_name)
+
     # while True:
     #     # A synchronisation string containing the characters tx is sent before each set of measurements
     #     tx = arduino.board.readline()
@@ -159,7 +162,7 @@ if __name__ == "__main__":
     #         rawData2 = arduino.board.readline()
     #         rawData3 = arduino.board.readline()
     #         rawData4 = arduino.board.readline()
-        
+
     #         timeStamp = str(rawData1).strip('b\'\\rn')
     #         temp1 = str(rawData2).strip('b\'\\rn')
     #         temp2 = str(rawData3).strip('b\'\\rn')
