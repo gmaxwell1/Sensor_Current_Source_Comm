@@ -30,8 +30,6 @@ finally:
     from conexCC.conexcc_class import *
     from conexCC.conexcc_control import (all_ready, check_no_motion,
                                          check_validity, get_coords, setup)
-    # from modules.MetrolabMeasurements import get_mean_dataset_MetrolabSensor
-    # remove all references to this!!!
     from core.measurement_functions import measure
     from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
     from other_useful_functions.general_functions import (
@@ -259,8 +257,7 @@ def search_with_Metrolab(CC1: ConexCC, CC2: ConexCC, node: MetrolabTHM1176Node, 
         for i in range(int(grid_number + 1)):
             CC1.move_absolute(xrang / grid_number * i + xmin)
             all_ready(CC1, CC2=CC2)
-            fsx.append(get_mean_dataset_MetrolabSensor(
-                node, sampling_size)[0][1])
+            fsx.append(measure(node, sampling_size, average=True)[1])
 
             if verbose:
                 print('Position {}: {:.5f}'.format(
@@ -292,8 +289,7 @@ def search_with_Metrolab(CC1: ConexCC, CC2: ConexCC, node: MetrolabTHM1176Node, 
         for i in range(int(grid_number + 1)):
             CC2.move_absolute(yrang / grid_number * i + ymin)
             all_ready(CC1, CC2=CC2)
-            fsy.append(get_mean_dataset_MetrolabSensor(
-                node, sampling_size)[0][0])
+            fsy.append(measure(node, sampling_size, average=True)[0])
             if verbose:
                 print('Position {}: {:.5f}'.format(
                     i, (yrang / grid_number * i + ymin)))
@@ -351,7 +347,7 @@ def find_center_axis(CC1, CC2, node: MetrolabTHM1176Node, sampling_size=10, min_
                                                      xlim=limits_x, ylim=limits_y, verbose=verbose,
                                                      grid_number=grid_number, update_factor=update_factor)
     center_position = np.array([xpos, ypos])
-    field = get_mean_dataset_MetrolabSensor(node, sampling_size)[0]
+    field = measure(node, sampling_size, average=True)
 
     return center_position, field
 
@@ -367,6 +363,6 @@ def estimate_theta_error(node: MetrolabTHM1176Node, sampling_size=20):
     - node (MetrolabTHM1176Node): represents the Metrolab THM 1176 sensor
     - sampling_size (int): number of estimates of B-field used for average
     """
-    field_vector = get_mean_dataset_MetrolabSensor(node, sampling_size)[0]
+    field_vector = measure(node, sampling_size, average=True)
     mag = np.linalg.norm(field_vector)
     return 90 - np.degrees(np.arccos(field_vector[2] / mag))
