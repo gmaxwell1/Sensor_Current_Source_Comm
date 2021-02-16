@@ -296,4 +296,10 @@ def saveDataPoints(I, mean_data, std_data, expected_fields,
 
 if __name__ == '__main__':
 
-    gotoPosition()
+    gotoPosition(meas_x=10.85, meas_y=4)
+    # thm = MetrolabTHM1176Node(period=0.05, block_size=20, range='0.1 T', average=1, unit='MT')
+    # for i in range(10):
+    #     B, B_std = measure(thm, 20, average=True)
+    #     print(B, B_std)
+    #     sleep(1)
+    # thm.sensor.close()

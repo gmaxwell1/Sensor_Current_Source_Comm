@@ -85,7 +85,7 @@ def gridSweep(
     """
     global desCurrents
 
-    psu = PowerSupplyCommands(ramp_steps)
+    psu = PowerSupplyCommands(num_steps=ramp_steps)
     psu.openConnection()
 
     # initialization of all arrays
@@ -154,14 +154,17 @@ def gridSweep(
 
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
-        mean_data, std_data = measure(node, N=10, average=True)
+        mean_data, std_data = measure(node, N=15, average=True)
         meas_currents = []
+        sign_mask = np.array([1, np.sign(desCurrents[1]), 1])
+
         for i in range(3):
             meas_currents.append(psu.power_supplies[i].getMeasurement(meas_quantity='current'))
+        meas_currents = np.array(meas_currents * sign_mask)
 
         mean_values.append(mean_data)
         stdd_values.append(std_data)
-        all_curr_vals.append(np.array(meas_currents))
+        all_curr_vals.append(meas_currents)
 
         if demagnetize:
             psu.demagnetizeCoils(current_config=desCurrents)
@@ -173,13 +176,13 @@ def gridSweep(
         saveTempData(
             arduino.data_stack,
             directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-            filename_suffix='temp_meas_during_Bsweep')
+            filename_suffix='temp_meas_repeatability')
     ##########################################################################
     # create/find subdirectory to save measurements
     fileprefix = 'field_meas'
     # folder,
-    now = datetime.now().strftime('%y_%m_%d')
-    filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{now}_{datadir}'
+    # now = datetime.now().strftime('%y_%m_%d')
+    filePath = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{datadir}'
 
     # saving data section (prepared for plotting)
     saveDataPoints((np.array(all_curr_vals)), np.array(mean_values),
@@ -337,7 +340,7 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
             saveTempData(
                 arduino.data_stack,
                 directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
-                filename_suffix='temp_meas_timed_const_field')
+                filename_suffix='temp_meas_repeatability')
 
         saveLoc = rf'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\{savedir}'
         strm(p.return_dict(), saveLoc, now=True)
@@ -364,10 +367,8 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
     """
     global desCurrents
 
-    channel_1 = IT6432Connection(1)
-    channel_2 = IT6432Connection(2)
-    channel_3 = IT6432Connection(3)
-    openConnection(channel_1, channel_2, channel_3)
+    psu = PowerSupplyCommands()
+    psu.openConnection()
 
     if len(t) == 0 or t[0] == 0:
         B_Field = vectors[0]
@@ -377,7 +378,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
             desCurrents[i] = round(channels[i], 3)
 
         print(f'Currents on each channel: ({desCurrents[0]}, {desCurrents[1]}, {desCurrents[2]})')
-        setCurrents(channel_1, channel_2, channel_3, desCurrents)
+        psu.setCurrents(desCurrents)
         # wait until user presses q
         c1 = '0'
         while c1 != 'q':
@@ -400,7 +401,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
                         desCurrents[i] = 0
                 print(
                     f'Currents on each channel: ({desCurrents[0]}, {desCurrents[1]}, {desCurrents[2]})')
-                setCurrents(channel_1, channel_2, channel_3, desCurrents)
+                psu.setCurrents(desCurrents)
 
             elif c1 == 'r':
                 inp1 = input('New magnitude: ')
@@ -431,7 +432,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
                     desCurrents[i] = round(I_vector[i], 3)
                 print(
                     f'Currents on each channel: ({desCurrents[0]}, {desCurrents[1]}, {desCurrents[2]})')
-                setCurrents(channel_1, channel_2, channel_3, desCurrents)
+                psu.setCurrents(desCurrents)
 ########################### ONLY WITH METROLAB SENSOR ###########################
 ##########################################################################
             elif c1 == 's':
@@ -505,7 +506,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
             for i in range(len(channels)):
                 desCurrents[i] = int(channels[i])
 
-            setCurrents(channel_1, channel_2, channel_3, desCurrents)
+            psu.setCurrents(desCurrents)
             # prevent the connection from timing out for long measurements.
             if timer < 500:
                 countdown = p.timerThread(0, timer)
@@ -519,7 +520,8 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
                 while time() - starttime < timer:
                     pause = min(500, timer - (time() - starttime))
                     sleep(pause)
-                    getMeasurement(channel_1, channel_2, channel_3)
+                    for power_supply in psu.power_supplies:
+                        power_supply.getMeasurement()
                 countdown.join()
 
         faden.join()
@@ -536,86 +538,82 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
         strm(p.returnDict, saveLoc, now=True)
 
     if demagnetize:
-        demagnetizeCoils(
-            channel_1, channel_2, channel_3, [
-                float(
-                    channel_1.query('current?')), float(
-                    channel_2.query('current?')), float(
-                    channel_3.query('current?'))])
-    disableCurrents(channel_1, channel_2, channel_3)
-    closeConnection(channel_1, channel_2, channel_3)
-
-
-if __name__ == "__main__":
-    psu = PowerSupplyCommands()
-
-    psu.openConnection()
-
-    # arduino = ArduinoUno('COM7')
-    # measure_temp = threading.Thread(
-    #     target=arduino.getTemperatureMeasurements, kwargs={
-    #         'print_meas': False})
-    # measure_temp.start()
-
-    params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
-    BFields = [np.array([6, -50, 20]), np.array([-30, 30, -30]), np.array(
-               [-43, -90, 0]), np.array([0, -10, 80]), np.array([36.3, 0, -18]),
-               np.array([-27, -3.141, 30]), np.array([0, 10, 50])]
-    returnDict = {}
-
-    k = 4
-
-    for ix, B in enumerate(BFields):
-        B_Field_cartesian = B  # - B_rem
-        channels = tr.computeCoilCurrents(B_Field_cartesian)
-        print(
-            f'\r({channels[0]:.3f}, {channels[1]:.3f}, {channels[2]:.3f})A; '
-            f'({B_Field_cartesian[0]:.3f}, {B_Field_cartesian[1]:.3f}, '
-            f'{B_Field_cartesian[2]:.3f})mT')
-
-        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
-            measureB = threading.Thread(target=node.start_acquisition, name='Meas_Thread')
-            measureB.start()
-
-            psu.setCurrents(channels)
-
-            starttime = time()  # = 0
-            while time() - starttime < 10:
-                pass
-
-            psu.demagnetizeCoils(channels, 5)
-
-            node.stop = True
-
-            measureB.join()
-        try:
-            xValues = -np.array(node.data_stack['Bx'])
-            yValues = np.array(node.data_stack['Bz'])
-            zValues = node.data_stack['By']
-
-            timeline = node.data_stack['Timestamp']
-            t_offset = timeline[0]
-            for ind in range(len(timeline)):
-                timeline[ind] = round(timeline[ind] - t_offset, 3)
-            returnDict = {'Bx': xValues.tolist(),
-                          'By': yValues.tolist(),
-                          'Bz': zValues.tolist(),
-                          'temp': node.data_stack['Temperature'],
-                          'time': timeline}
-        except Exception as e:
-            print(f'{__name__}: {e}')
-
-        strm(
-            returnDict,
-            r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag\demagnetization',
-            f'demag_test_{k}',
-            now=True)
-        with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
-            sleep(0.5)
-            B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
-        k += 1
-
+        psu.demagnetizeCoils([psu.setCurrentValues])
+    else:
+        psu.disableCurrents()
     psu.closeConnection()
+
+
+# if __name__ == "__main__":
+#     psu = PowerSupplyCommands()
+
+#     psu.openConnection()
+
+#     # arduino = ArduinoUno('COM7')
+#     # measure_temp = threading.Thread(
+#     #     target=arduino.getTemperatureMeasurements, kwargs={
+#     #         'print_meas': False})
+#     # measure_temp.start()
+
+#     params = {'block_size': 20, 'period': 0.05, 'duration': 120, 'averaging': 5}
+#     BFields = [np.array([6, -50, 20]), np.array([-30, 30, -30]), np.array(
+#                [-43, -90, 0]), np.array([0, -10, 80]), np.array([36.3, 0, -18]),
+#                np.array([-27, -3.141, 30]), np.array([0, 10, 50])]
+#     returnDict = {}
+
+#     k = 4
+
+#     for ix, B in enumerate(BFields):
+#         B_Field_cartesian = B  # - B_rem
+#         channels = tr.computeCoilCurrents(B_Field_cartesian)
+#         print(
+#             f'\r({channels[0]:.3f}, {channels[1]:.3f}, {channels[2]:.3f})A; '
+#             f'({B_Field_cartesian[0]:.3f}, {B_Field_cartesian[1]:.3f}, '
+#             f'{B_Field_cartesian[2]:.3f})mT')
+
+#         with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+#             measureB = threading.Thread(target=node.start_acquisition, name='Meas_Thread')
+#             measureB.start()
+
+#             psu.setCurrents(channels)
+
+#             starttime = time()  # = 0
+#             while time() - starttime < 10:
+#                 pass
+
+#             psu.demagnetizeCoils(channels, 5)
+
+#             node.stop = True
+
+#             measureB.join()
+#         try:
+#             xValues = -np.array(node.data_stack['Bx'])
+#             yValues = np.array(node.data_stack['Bz'])
+#             zValues = node.data_stack['By']
+
+#             timeline = node.data_stack['Timestamp']
+#             t_offset = timeline[0]
+#             for ind in range(len(timeline)):
+#                 timeline[ind] = round(timeline[ind] - t_offset, 3)
+#             returnDict = {'Bx': xValues.tolist(),
+#                           'By': yValues.tolist(),
+#                           'Bz': zValues.tolist(),
+#                           'temp': node.data_stack['Temperature'],
+#                           'time': timeline}
+#         except Exception as e:
+#             print(f'{__name__}: {e}')
+
+#         strm(
+#             returnDict,
+#             r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag\demagnetization',
+#             f'demag_test_{k}',
+#             now=True)
+#         with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.3 T', average=5, unit='MT') as node:
+#             sleep(0.5)
+#             B_rem = sensor_to_magnet_coordinates(node.measureFieldmT())
+#         k += 1
+
+#     psu.closeConnection()
 
     # arduino.stop = True
     # measure_temp.join()
@@ -624,104 +622,100 @@ if __name__ == "__main__":
     #     directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
     #     filename_suffix='temp_meas_stbility_1-7')
 
-# if __name__ == '__main__':
-#     channel_1 = IT6432Connection(1)
-#     channel_2 = IT6432Connection(2)
-#     channel_3 = IT6432Connection(3)
-#     openConnection(channel_1, channel_2, channel_3)
+if __name__ == '__main__':
 
-#     # initialization of all arrays
-#     # all_curr_steps = np.linspace(start_val, end_val, steps)
-#     mean_values = []
-#     stdd_values = []
-#     expected_fields = []
-#     remanence_values = []
-#     all_curr_vals = []
+    # setup measurements:
+    x_axis_sweep_file = r'test_sets\sweep_x_50mT_size100.csv'
+    y_axis_sweep_file = r'test_sets\sweep_y_50mT_size100.csv'
+    z_axis_sweep_file = r'test_sets\sweep_z_50mT_size100.csv'
 
-#     ##########################################################################
-#     inpFile = r'test_sets\vectors_rng987_0-60mT_size25.csv'
-#     BField = True
-#     input_list = []
-#     with open(inpFile, 'r') as f:
-#         contents = csv.reader(f)
-#         next(contents)
-#         input_list = list(contents)
+    x_axis_rot_file = r'test_sets\rotation_x_10mT_size100.csv'
+    y_axis_rot_file = r'test_sets\rotation_y_10mT_size100.csv'
+    z_axis_rot_file = r'test_sets\rotation_z_10mT_size100.csv'
 
-#     # meas_duration = 22
+    data_dir = 'repeatability_error_source_search'
+    fast_ramp = 1
+    slow_ramp = 15
+    normal_ramp = 5
 
-#     start_time = time()
-# # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-#     # as node:
-#     node = MetrolabTHM1176Node(period=0.01, block_size=30, range='0.3 T', average=1, unit='MT')
-#     for i, row in enumerate(input_list):
-#         config = np.array(
-#             [float(row[0]), float(row[1]), float(row[2])])
+    # for i in range(5):
+    #     with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.1 T', average=1, unit='MT') as node:
+    #         ramp = normal_ramp
+    #         sub_rem = False
+    #         if i == 2:
+    #             ramp = slow_ramp
+    #         if i == 3:
+    #             ramp = fast_ramp
+    #         if i == 4:
+    #             sub_rem = True
 
-#         B_vector = np.array(
-#             [float(row[0]), float(row[1]), float(row[2])])
-#         config = tr.computeCoilCurrents(B_vector)
+    #         gridSweep(
+    #             node,
+    #             x_axis_sweep_file,
+    #             data_dir,
+    #             ramp_steps=ramp,
+    #             sub_remanence=sub_rem,
+    #             BField=True,
+    #             demagnetize=True,
+    #             temp_meas=True)
+    #         sleep(60)
+    #         gridSweep(
+    #             node,
+    #             y_axis_sweep_file,
+    #             data_dir,
+    #             ramp_steps=ramp,
+    #             sub_remanence=sub_rem,
+    #             BField=True,
+    #             demagnetize=True,
+    #             temp_meas=True)
+    #         sleep(60)
+    #         gridSweep(
+    #             node,
+    #             z_axis_sweep_file,
+    #             data_dir,
+    #             ramp_steps=ramp,
+    #             sub_remanence=sub_rem,
+    #             BField=True,
+    #             demagnetize=True,
+    #             temp_meas=True)
+    #         sleep(60)
 
-#         for k in range(3):
-#             desCurrents[k] = config[k]
+    # sleep(3600)
 
-#         setCurrents(channel_1, channel_2, channel_3, desCurrents)
-#         # Let the field stabilize
-#         sleep(0.5)
-#         elapsed_time = time() - start_time
-#         print(
-#             f'\rmeasurement {i + 1}/{len(input_list)}; {elapsed_time:.1f}s so far   ',
-#             sep='',
-#             end='',
-#             flush=True)
-#         # collect measured and expected magnetic field (of the specified sensor in measurements)
-#         # see measurements.py for more details
-#         mean_data, std_data = measure(node, N=10, average=True)
-#         meas_currents = getMeasurement(channel_1, channel_2, channel_3, meas_quantity='current')
-#         mean_values.append(mean_data)
-#         stdd_values.append(std_data)
-#         all_curr_vals.append(np.array(meas_currents))
-#         # we already know the expected field values
-#         expected_fields.append(B_vector)
+    for i in range(4):
+        node = MetrolabTHM1176Node(period=0.05, block_size=20, range='0.1 T', average=1, unit='MT')
+        sub_rem = False
+        if i == 3:
+            sub_rem = True
 
-#         signs = np.sign(desCurrents)
-#         # demag = np.array(desCurrents) / (max(desCurrents))
-#         demagnetizeCoils(channel_1, channel_2, channel_3, current_config=2.5 * signs)
-#         sleep(2)
-#         mean_data, std_data = measure(node, N=10, average=True)
-#         remanence_values.append(mean_data)
-
-#     node.sensor.close()
-# # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-#     all_curr_vals = np.array(all_curr_vals)
-#     mean_values = np.array(mean_values)
-#     remanence_values = np.array(remanence_values)
-#     expected_fields = np.array(expected_fields)
-
-#     try:
-#         # depending on which function in main_menu.py was used to measure
-#         df = pd.DataFrame({'channel 1 [A]': all_curr_vals[:, 0],
-#                            'channel 2 [A]': all_curr_vals[:, 1],
-#                            'channel 3 [A]': all_curr_vals[:, 2],
-#                            'mean Bx [mT]': mean_values[:, 0],
-#                            'mean By [mT]': mean_values[:, 1],
-#                            'mean Bz [mT]': mean_values[:, 2],
-#                            'rem Bx [mT]': remanence_values[:, 0],
-#                            'rem By [mT]': remanence_values[:, 1],
-#                            'rem Bz [mT]': remanence_values[:, 2],
-#                            'expected Bx [mT]': expected_fields[:, 0],
-#                            'expected By [mT]': expected_fields[:, 1],
-#                            'expected Bz [mT]': expected_fields[:, 2]})
-#         print('success!')
-#     except BaseException as e:
-#         print(e)
-
-#     now = datetime.now().strftime('%y_%m_%d_%H-%M-%S')
-#     output_file_name = f'{now}_demag_test_1.csv'
-#     file_path = os.path.join(
-#         r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\data_sets\testing_IT6432_demag\demagnetization',
-#         output_file_name)
-#     df.to_csv(file_path, index=False, header=True)
-
-#     demagnetizeCoils(channel_1, channel_2, channel_3, [0.5, 0.5, 0.5])
-#     # end of measurements
-#     closeConnection(channel_1, channel_2, channel_3)
+        if i > 1:
+            sleep(3600)
+        gridSweep(
+            node,
+            x_axis_rot_file,
+            data_dir,
+            sub_remanence=sub_rem,
+            BField=True,
+            demagnetize=True,
+            temp_meas=True)
+        if i > 1:
+            sleep(3600)
+        gridSweep(
+            node,
+            y_axis_rot_file,
+            data_dir,
+            sub_remanence=sub_rem,
+            BField=True,
+            demagnetize=True,
+            temp_meas=True)
+        if i > 1:
+            sleep(3600)
+        gridSweep(
+            node,
+            z_axis_rot_file,
+            data_dir,
+            sub_remanence=sub_rem,
+            BField=True,
+            demagnetize=True,
+            temp_meas=True)
+        node.sensor.close()

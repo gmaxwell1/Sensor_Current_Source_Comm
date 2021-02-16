@@ -12,6 +12,7 @@
 import os.path as path
 import sys
 import threading
+import traceback
 from time import sleep, time
 
 import numpy as np
@@ -23,9 +24,6 @@ except BaseException:
 finally:
     sys.path.insert(1, path.join(sys.path[0], '..'))
     from IT6432.it6432connection import IT6432Connection
-
-    from core.main_comm_new import closeConnection, openConnection
-    from core.meas_parallelization import flags, inputThread, threadLock
 
 
 class PowerSupplyCommands(object):
@@ -220,8 +218,11 @@ class VoltageRamper(threading.Thread):
                 self._new_voltage,
                 self._new_current,
                 self._num_steps)
-        except BaseException as e:
-            print(f'There was an error on channel {self._channel}! {e}')
+        except BaseException:
+            print(f'There was an error on channel {self._channel.channel}!')
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            print(f'{exctype} {value}\n{traceback.format_exc()}')
 
 
 def rampVoltageSimple(
@@ -333,10 +334,10 @@ if __name__ == "__main__":
     psu = PowerSupplyCommands()
 
     psu.openConnection()
-    psu.setCurrents([1, 3, 2.3])
+    # psu.setCurrents([1, 3, 2.3])
 
     sleep(10)
 
-    psu.demagnetizeCoils(psu.setCurrentValues)
+    psu.disableCurrents()
 
     psu.closeConnection()

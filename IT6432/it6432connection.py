@@ -295,7 +295,7 @@ class IT6432Connection:
             Exception: See ErrorFactory
         """
         error_code, error_message = self.query('system:error?', check_error=False).split(',')
-        if int(error_code) != 0:
+        if int(error_code) != 0 and int(error_code) != 224:
             # logger.debug(f'{__name__}; error code: {error_code}')
             raise self._ErrorFactory(int(error_code), error_message)
 

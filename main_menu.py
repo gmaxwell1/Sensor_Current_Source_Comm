@@ -49,7 +49,8 @@ def MainMenu():
         print("[3]: set currents manually on the 3 channels (in mA)")
 
         # print('[h] do a hysteresis test.\n')
-        # print('[t]: measure temperature and field for constant, nonzero currents in first half and zero currents in second half\n')
+        # print('[t]: measure temperature and field for constant, nonzero currents
+        # in first half and zero currents in second half\n')
 
         c1 = input()
 

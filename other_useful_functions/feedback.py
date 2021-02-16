@@ -1,24 +1,33 @@
 # filename: feedback.py
-# 
+#
 # This script is meant to be used control the magnetic field using feedback from measurement and a simple correction algorithm.
-# 
+#
 # Author: Maxwell Guerne-Kieferndorf (QZabre)
 #         gmaxwell@student.ethz.ch
-# 
+#
 # Date: 10.11.2020
 # latest update: Dec 2020
 
-########## Standard library imports ##########
-import numpy as np
-from scipy import stats
-from time import time, sleep
-from datetime import datetime
 import os
 import threading
+from datetime import datetime
+from time import sleep, time
 
-from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
-import core.field_current_tr as tr
-import other_useful_functions.general_functions as gen
+import numpy as np
+from scipy import stats
+
+try:
+    from core.current_control import PowerSupplyCommands
+except BaseException:
+    pass
+finally:
+    import sys
+    sys.path.insert(1, os.path.join(sys.path[0], '..'))
+    import core.field_current_tr as tr
+    from core.current_control import PowerSupplyCommands
+    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+
+    import other_useful_functions.general_functions as gen
 
 
 class inputThread(threading.Thread):
@@ -53,7 +62,8 @@ class inputThread(threading.Thread):
 flags = [1]
 
 
-def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, calibrate=False, ECB_active=True):
+def callableFeedback(BField, currentStep=20, maxCorrection=30,
+                     threshold=0.5, calibrate=False, ECB_active=True):
     """
     Feedback control of vector magnet based on measurements used to obtain any desired magnetic field. To be called externally/with predefined parameters.
 
@@ -66,7 +76,7 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, ca
         maxCorrection (int, optional): The maximum step size for current correction. Defaults to 30.
         thresholdPercentage (float, optional): Percentage of total magnitude the error needs to exceed to be considered. Defaults to 0.02.
         calibrate (bool, optional): The sensor is calibrated before measuring if True. Defaults to False.
-        ECB_active (bool,optional): Tells us whether there already is a connection with the ECB. 
+        ECB_active (bool,optional): Tells us whether there already is a connection with the ECB.
                                     Useful if this function is being called after the ECB was activated. Defaults to True.
 
     Returns:
@@ -98,7 +108,7 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, ca
             desiredBField = tr.computeMagneticFieldVector(
                 magneticField, theta, phi)
 
-    except:
+    except BaseException:
         desiredBField = np.array([20, 0, 0])
         print('No usable magnetic field vector was given! Using the default value (20mT in x direction).')
 
@@ -128,7 +138,7 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, ca
                 np.array(node.measureFieldmT()))
 
             B_magnitude = np.linalg.norm(newBMeasurement)
-            theta = np.degrees(np.arccos(newBMeasurement[2]/B_magnitude))
+            theta = np.degrees(np.arccos(newBMeasurement[2] / B_magnitude))
             phi = np.degrees(np.arctan2(
                 newBMeasurement[1], newBMeasurement[0]))
 
@@ -171,7 +181,8 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, ca
             # limit duration of loop
             if noError:
                 count = count + 1
-            # if at least 10 consecutive measurements are within the error margin, the config is good enough.
+            # if at least 10 consecutive measurements are within the error margin, the
+            # config is good enough.
             if count >= 20:
                 flags.insert(0, '')
 
@@ -183,8 +194,8 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, ca
                     deltaCurrent = np.sign(deltaCurrent) * maxCorrection
 
             # The set current values are adapted to correct the magnetic field
-            desCurrents[0:3] = [int(desCurrents[0]+deltaCurrent[0]), int(desCurrents[1]+deltaCurrent[1]),
-                                int(desCurrents[2]+deltaCurrent[2])]
+            desCurrents[0:3] = [int(desCurrents[0] + deltaCurrent[0]), int(desCurrents[1] + deltaCurrent[1]),
+                                int(desCurrents[2] + deltaCurrent[2])]
             setCurrents(desCurrents=desCurrents)
             # wait for stabilization
             sleep(0.3)
@@ -204,7 +215,7 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30, threshold=0.5, ca
     return desiredBField, derivatives, modeCurrents[0]
 
 
-def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5, calibrate=False):
+def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5):
     """
     Feedback control of vector magnet to obtain any desired magnetic field. Enter all parameters by hand.
 
@@ -212,18 +223,17 @@ def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5, calibrate=Fa
         currentStep (int, optional): The maximum step size for derivative (system) estimation. Defaults to 20.
         maxCorrection (int, optional): The maximum step size for current correction. Defaults to 30.
         thresholdPercentage (float, optional): Percentage of total magnitude the error needs to exceed to be considered. Defaults to 0.02.
-        calibrate (bool, optional): Tells the user whether or not to calibrate the sensor before measuring. Defaults to False.
 
     """
     global flags  # for handling input
     # currents to set on ECB
-    desCurrents = [0] * 8
+    desCurrents = [0] * 3
     # we want to find the 'best' current configuration for a certain direction ultimately.
     # So we save the current values where the error is below the threshold, at the three
     # coil values will be averaged.
     goodCurrentValues = []
     # queue with the last measured magnetic field vector
-    fieldVectors = []
+    # fieldVectors = []
 
     # # future option: enter the field in either coordinate system
     coordinates = input('cartesian or spherical coordinates? ')
@@ -253,28 +263,26 @@ def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5, calibrate=Fa
             desiredBField = np.array([float(magneticField_x), float(
                 magneticField_y), float(magneticField_z)])
             magneticField = np.linalg.norm(desiredBField)
-    except:
+    except BaseException:
         desiredBField = np.array([20, 0, 0])
         print("There was an issue setting the magnetic field. Using the default value (20mT in x direction).")
 
     # connect with ECB
-    openConnection()
+    psu = PowerSupplyCommands()
+    psu.openConnection()
     # initialize sensor to start measuring
     with MetrolabTHM1176Node(period=0.05, range='0.3 T', average=20) as node:
         # node = MetrolabTHM1176Node(period=0.1, range='0.3 T', average=5)
         configCurrents = tr.computeCoilCurrents(desiredBField)
         # compute linearization Matrix around the current operating point
-        enableCurrents()
-        derivatives = localLinearization(
-            node, configCurrents=configCurrents, currentStep=currentStep, numSteps=10)
+        derivatives = localLinearization(psu,
+                                         node, configCurrents=configCurrents,
+                                         currentStep=currentStep, numSteps=10)
         print(derivatives)
-        disableCurrents()
+        psu.disableCurrents()
 
-        calibration(node, calibrate=calibrate)
-
-        enableCurrents()
         desCurrents[0:3] = configCurrents.tolist()
-        setCurrents(desCurrents=desCurrents, direct=b'1')
+        psu.setCurrents(des_currents=desCurrents)
         goodCurrentValues.append(desCurrents[0:3])
 
         # 'Press Enter to quit' prompt
@@ -286,7 +294,7 @@ def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5, calibrate=Fa
                 np.array(node.measureFieldmT()))
 
             B_magnitude = np.linalg.norm(newBMeasurement)
-            theta = np.degrees(np.arccos(newBMeasurement[2]/B_magnitude))
+            theta = np.degrees(np.arccos(newBMeasurement[2] / B_magnitude))
             phi = np.degrees(np.arctan2(
                 newBMeasurement[1], newBMeasurement[0]))
 
@@ -327,9 +335,9 @@ def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5, calibrate=Fa
                     deltaCurrent = np.sign(deltaCurrent) * maxCorrection
 
             # The set current values are adapted to correct the magnetic field
-            desCurrents[0:3] = [int(desCurrents[0]+deltaCurrent[0]), int(desCurrents[1]+deltaCurrent[1]),
-                                int(desCurrents[2]+deltaCurrent[2])]
-            setCurrents(desCurrents=desCurrents)
+            desCurrents[0:3] = [int(desCurrents[0] + deltaCurrent[0]), int(desCurrents[1] + deltaCurrent[1]),
+                                int(desCurrents[2] + deltaCurrent[2])]
+            psu.setCurrents(des_currents=desCurrents)
             # wait for stabilization
             sleep(0.4)
 
@@ -339,12 +347,13 @@ def manualFeedback(currentStep=20, maxCorrection=30, threshold=0.5, calibrate=Fa
 
     print(printCurrents[0])
 
-    demagnetizeCoils()
-    disableCurrents()
-    closeConnection()
+    psu.demagnetizeCoils(printCurrents[0])
+    # disableCurrents()
+    psu.closeConnection()
 
 
-def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000, 1000, 1000]), currentStep=20, numSteps=10):
+def localLinearization(psu: PowerSupplyCommands, node: MetrolabTHM1176Node, configCurrents=np.array(
+        [1, 1, 1]), currentStep=20, numSteps=10):
     """
     Compute a local linearization of the relationship between current and B-field using measurements and a fixed step size.
 
@@ -352,14 +361,14 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
         node (MetrolabTHM1176Node): Instance of the Metrolab sensor.
         configCurrents (np.array(3)), optional): Current configuration around which to linearize. Defaults to np.array([1000,1000,1000]).
         currentStep (int, optional): Step size by which current is changed to compute slope. If the step
-                                     size is too small, the change in magnetic field strength may be 
+                                     size is too small, the change in magnetic field strength may be
                                      inaccurate due to noise. Defaults to 20.
         numSteps (int, optional): The number of measurements over which the result is averaged. Defaults to 10.
 
     Returns:
         derivatives (3x3 np.ndarray): matrix with 'derivatives' of field components wrt current in each coil.
     """
-    desCurrents = [0] * 8
+    desCurrents = [0] * 3
     fieldVectors = []
 
     currentRefs = np.ndarray((3, 3))
@@ -372,7 +381,7 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
 
     # set currents for the first time
     desCurrents[0:3] = configCurrents.tolist()
-    setCurrents(desCurrents=desCurrents, direct=b'1')
+    psu.setCurrents(des_currents=desCurrents)
     print('\nComputed currents on channels 1, 2, 3: '
           f'({configCurrents[0]}, {configCurrents[1]}, {configCurrents[2]})')
 
@@ -386,7 +395,7 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
         prefac = 1
         if not np.sign(a) > 0:
             prefac = -1
-        
+
         # set initial current 'point'
         initialOffset = prefac * numSteps * currentStep
         desCurrents[0:3] = configCurrents.tolist()
@@ -394,7 +403,7 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
                             int(desCurrents[1] +
                                 initialOffset * currentRefs[i, 1]),
                             int(desCurrents[2] + initialOffset * currentRefs[i, 2])]
-        setCurrents(desCurrents=desCurrents, direct=b'1')
+        psu.setCurrents(des_currents=desCurrents)
 
         currentStep = - prefac * currentStep
         # increase or decrease current by step size 2*N times
@@ -403,7 +412,7 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
                                 int(desCurrents[1] +
                                     currentStep * currentRefs[i, 1]),
                                 int(desCurrents[2] + currentStep * currentRefs[i, 2])]
-            setCurrents(desCurrents=desCurrents)
+            psu.setCurrents(des_currents=desCurrents)
 
             sleep(0.5)
 
@@ -416,12 +425,12 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
             if len(fieldVectors) > 4:
                 # use central difference formula with 4th order accuracy, consider current step to be j+2, in total a range of 5
                 # measurements is used
-                differenceQuotients.insert(0, (-1.0/12.0 * fieldVectors[0] + 2.0/3.0 * fieldVectors[1] - 2.0/3.0 * fieldVectors[3] + 1.0/12.0 * fieldVectors[4]) / currentStep)
-
+                differenceQuotients.insert(
+                    0, (-1.0 / 12.0 * fieldVectors[0] + 2.0 / 3.0 * fieldVectors[1] - 2.0 / 3.0 * fieldVectors[3] + 1.0 / 12.0 * fieldVectors[4]) / currentStep)
 
         print('')
         # save the latest row of the 'derivatives' in the matrix
-        # 
+        #
         derivatives[:, i] = np.mean(np.array(differenceQuotients), 0)
         differenceQuotients.clear()
 
@@ -430,6 +439,6 @@ def localLinearization(node: MetrolabTHM1176Node, configCurrents=np.array([1000,
 
 ########## test stuff out ##########
 if __name__ == '__main__':
-    manualFeedback(maxCorrection=20, calibrate=True)
+    manualFeedback(maxCorrection=20)
 
     # simpFeedback()

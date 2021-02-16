@@ -149,10 +149,10 @@ if __name__ == "__main__":
     arduino.stop = True
     measure.join()
 
-    saveTempData(
-        arduino.data_stack,
-        directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements\water_temp',
-        filename_suffix=dataset_name)
+    # saveTempData(
+    #     arduino.data_stack,
+    #     directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements\water_temp',
+    #     filename_suffix=dataset_name)
 
     # while True:
     #     # A synchronisation string containing the characters tx is sent before each set of measurements
