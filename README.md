@@ -17,7 +17,7 @@ After cloning this repository follow these steps (this is for Windows, but it sh
     Otherwise, comment out all dependencies and function calls having to do with the sensor (MetrolabTHM1176Node class). Mainly in core/magnet_control_funcitons.py
     and core/measurement_functions.py
 2. Using Temperature Sensors: make sure the sensor wiring conforms to the following [schematic]().
-   Then run the .ino file in the "other_useful_functions" folder on the arduino board, make sure there are no errors (e.g. using the serial monitor in the arduino IDE)
+   Then run the .ino file in the "other_useful_functions\Arduino\ExtendedADT7410" folder on the arduino board, make sure there are no errors (e.g. using the serial monitor in the arduino IDE)
    and finally run the script for collecting measurement data.
 3. The IT6432 current sources must be configured to have the IP addresses `192.168.237.47, 192.168.237.48, 192.168.237.49` for coils 1, 2 and 3 respectively,
    check this by selecting "Menu" -> "System" -> "Sys Comm" -> "LAN". The IP addresses could alternatively be changed in the `IT6432Connection` class.
