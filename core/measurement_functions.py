@@ -77,7 +77,7 @@ def newMeasurementFolder(defaultDataDir='data_sets', sub_dir_base='z_field_meas'
     return sub_dirname, dataDir
 
 
-def gotoPosition(meas_x=10.7, meas_y=3.7, meas_height=11.8):
+def gotoPosition(meas_x=10.85, meas_y=3.7, meas_height=11.8):
     """
     move the stage into position to measure with the sensor.
     Note: Be sure that the position parameters here correspond to the actual setup
@@ -296,7 +296,7 @@ def saveDataPoints(I, mean_data, std_data, expected_fields,
 
 if __name__ == '__main__':
 
-    gotoPosition(meas_x=10.85, meas_y=4)
+    gotoPosition(meas_x=10.9, meas_y=4.3)
     # thm = MetrolabTHM1176Node(period=0.05, block_size=20, range='0.1 T', average=1, unit='MT')
     # for i in range(10):
     #     B, B_std = measure(thm, 20, average=True)

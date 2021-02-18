@@ -129,8 +129,8 @@ def gridSweep(
             # we already know the expected field values
             expected_fields.append(B_vector)
             if sub_remanence:
-                B_vector -= remanence_values
-            config = tr.computeCoilCurrents(B_vector)
+                B_vector_new = B_vector - remanence_values
+            config = tr.computeCoilCurrents(B_vector_new)
 
         else:
             # estimate of resulting B field
@@ -154,7 +154,7 @@ def gridSweep(
 
         # collect measured and expected magnetic field (of the specified sensor in measurements)
         # see measurements.py for more details
-        mean_data, std_data = measure(node, N=15, average=True)
+        mean_data, std_data = measure(node, N=1, average=True)
         meas_currents = []
         sign_mask = np.array([1, np.sign(desCurrents[1]), 1])
 
@@ -175,7 +175,7 @@ def gridSweep(
         measure_temp.join()
         saveTempData(
             arduino.data_stack,
-            directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements',
+            directory=r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\1_data_analysis_interpolation\Data_Analysis_For_VM\temperature_measurements\repeatability_meas_2021_17_02',
             filename_suffix='temp_meas_repeatability')
     ##########################################################################
     # create/find subdirectory to save measurements
@@ -225,7 +225,7 @@ def runCurrents(config_list, t=[], subdir='default_location', demagnetize=False,
         c1 = '0'
         while c1 != 'q':
             c1 = input(
-                '[q] to disable currents\n[c]: get currents\n[r]: Set new currents\n[s]: monitor magnetic field')
+                '[q] to disable currents\n[c]: get currents\n[r]: Set new currents\n[s]: monitor magnetic field\n')
             if c1 == 'c':
                 currentsList = getMeasurement(channel_1, channel_2, channel_3)
                 print(
@@ -383,8 +383,7 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
         c1 = '0'
         while c1 != 'q':
             c1 = input('[q] to disable currents\n[c]: Set new currents\n[r]: Set new mag field\n'
-                       '[s]: monitor magnetic field (does not work)\n'
-                       '[f]: get magnetic field time-resolved measurement series (does not work)\n')
+                       '[s]: monitor magnetic field\n')
 
             if c1 == 'c':
                 channels = [0, 0, 0]
@@ -625,71 +624,22 @@ def generateMagneticField(vectors, t=[], subdir='default_location',
 if __name__ == '__main__':
 
     # setup measurements:
-    x_axis_sweep_file = r'test_sets\sweep_x_50mT_size100.csv'
-    y_axis_sweep_file = r'test_sets\sweep_y_50mT_size100.csv'
-    z_axis_sweep_file = r'test_sets\sweep_z_50mT_size100.csv'
+    # x_axis_sweep_file = r'test_sets\sweep_x_50mT_size50.csv'
+    # y_axis_sweep_file = r'test_sets\sweep_y_50mT_size50.csv'
+    # z_axis_sweep_file = r'test_sets\sweep_z_50mT_size50.csv'
 
-    x_axis_rot_file = r'test_sets\rotation_x_10mT_size100.csv'
-    y_axis_rot_file = r'test_sets\rotation_y_10mT_size100.csv'
-    z_axis_rot_file = r'test_sets\rotation_z_10mT_size100.csv'
+    x_axis_rot_file = r'test_sets\rotation_x_50mT_size50.csv'
+    y_axis_rot_file = r'test_sets\rotation_y_50mT_size50.csv'
+    z_axis_rot_file = r'test_sets\rotation_z_50mT_size50.csv'
 
-    data_dir = 'repeatability_error_source_search'
-    fast_ramp = 1
-    slow_ramp = 15
-    normal_ramp = 5
+    data_dir = r'repeatability_error_source_search\18_02_21_measurements'
 
-    # for i in range(5):
-    #     with MetrolabTHM1176Node(period=0.05, block_size=20, range='0.1 T', average=1, unit='MT') as node:
-    #         ramp = normal_ramp
-    #         sub_rem = False
-    #         if i == 2:
-    #             ramp = slow_ramp
-    #         if i == 3:
-    #             ramp = fast_ramp
-    #         if i == 4:
-    #             sub_rem = True
+    # for i in range(4):
+    with MetrolabTHM1176Node(period=0.02, block_size=20, range='0.1 T', average=1, unit='MT') as node:
+        sub_rem = True
+        # if i == 1 or i == 3:
+        #     sub_rem = False
 
-    #         gridSweep(
-    #             node,
-    #             x_axis_sweep_file,
-    #             data_dir,
-    #             ramp_steps=ramp,
-    #             sub_remanence=sub_rem,
-    #             BField=True,
-    #             demagnetize=True,
-    #             temp_meas=True)
-    #         sleep(60)
-    #         gridSweep(
-    #             node,
-    #             y_axis_sweep_file,
-    #             data_dir,
-    #             ramp_steps=ramp,
-    #             sub_remanence=sub_rem,
-    #             BField=True,
-    #             demagnetize=True,
-    #             temp_meas=True)
-    #         sleep(60)
-    #         gridSweep(
-    #             node,
-    #             z_axis_sweep_file,
-    #             data_dir,
-    #             ramp_steps=ramp,
-    #             sub_remanence=sub_rem,
-    #             BField=True,
-    #             demagnetize=True,
-    #             temp_meas=True)
-    #         sleep(60)
-
-    # sleep(3600)
-
-    for i in range(4):
-        node = MetrolabTHM1176Node(period=0.05, block_size=20, range='0.1 T', average=1, unit='MT')
-        sub_rem = False
-        if i == 3:
-            sub_rem = True
-
-        if i > 1:
-            sleep(3600)
         gridSweep(
             node,
             x_axis_rot_file,
@@ -698,8 +648,7 @@ if __name__ == '__main__':
             BField=True,
             demagnetize=True,
             temp_meas=True)
-        if i > 1:
-            sleep(3600)
+        sleep(600)
         gridSweep(
             node,
             y_axis_rot_file,
@@ -708,8 +657,7 @@ if __name__ == '__main__':
             BField=True,
             demagnetize=True,
             temp_meas=True)
-        if i > 1:
-            sleep(3600)
+        sleep(600)
         gridSweep(
             node,
             z_axis_rot_file,
@@ -718,4 +666,45 @@ if __name__ == '__main__':
             BField=True,
             demagnetize=True,
             temp_meas=True)
-        node.sensor.close()
+        sleep(600)
+
+    # # sleep(3600)
+
+    # for i in range(4):
+    # with MetrolabTHM1176Node(period=0.02, block_size=20, range='0.1 T', average=1, unit='MT') as node:
+        # sub_rem = True
+        # if i == 1 or i == 3:
+        #     sub_rem = False
+        # if i > 1:
+        x_axis_rot_file = r'test_sets\rotation_x_20mT_size50.csv'
+        y_axis_rot_file = r'test_sets\rotation_y_20mT_size50.csv'
+        z_axis_rot_file = r'test_sets\rotation_z_20mT_size50.csv'
+
+        # if i > 0:
+        #     sleep(600)
+        gridSweep(
+            node,
+            x_axis_rot_file,
+            data_dir,
+            sub_remanence=sub_rem,
+            BField=True,
+            demagnetize=True,
+            temp_meas=True)
+        sleep(600)
+        gridSweep(
+            node,
+            y_axis_rot_file,
+            data_dir,
+            sub_remanence=sub_rem,
+            BField=True,
+            demagnetize=True,
+            temp_meas=True)
+        sleep(600)
+        gridSweep(
+            node,
+            z_axis_rot_file,
+            data_dir,
+            sub_remanence=sub_rem,
+            BField=True,
+            demagnetize=True,
+            temp_meas=True)

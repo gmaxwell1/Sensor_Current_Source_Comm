@@ -16,9 +16,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PyQt5 import QtGui
 from PyQt5.QtCore import (QObject, QRunnable, Qt, QThreadPool, pyqtSignal,
                           pyqtSlot)
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QFormLayout, QHBoxLayout,
-                             QLabel, QLineEdit, QMessageBox, QPushButton,
-                             QToolBar, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QFormLayout, QGridLayout,
+                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                             QPushButton, QToolBar, QVBoxLayout, QWidget)
 
 from core.current_control import PowerSupplyCommands
 from core.field_current_tr import (computeCoilCurrents,
@@ -140,44 +140,50 @@ class VectorMagnetDialog(QWidget):
         generalLayout = QVBoxLayout()
 
         # add input fields to enter spherical coordinates
-        upperLayout = QHBoxLayout()
+        upperLayout = QGridLayout()
 
-        entriesLayout = QFormLayout()
+        # entriesLayout = QFormLayout()
+        labels_polar_coords = [
+            QLabel('|\U0001D435| [mT]:'),
+            QLabel('\U0001D717 [°]:'),
+            QLabel('\U0001D719 [°]:')]  # magnitude, theta, phi
         self.input_polar_coords = [
             QLineEdit(parent=self),
             QLineEdit(parent=self),
             QLineEdit(parent=self)]
-        labels_polar_coords = [
-            '|\U0001D435| [mT]:',
-            '\U0001D717 [°]:',
-            '\U0001D719 [°]:']  # magnitude, theta, phi
+        # add a label to display set magnetic field values
+        self.setpoints_BField = [QLabel('0.00 mT'),
+                                 QLabel('0.000 °'),
+                                 QLabel('0.000 °')]
+
+        labels_currents = [QLabel('\U0001D43C\u2081: '),
+                           QLabel('\U0001D43C\u2082: '),
+                           QLabel('\U0001D43C\u2083: ')]
+        self.setpoints_currents = [QLabel('0.000A'),
+                                   QLabel('0.000A'),
+                                   QLabel('0.000A')]
+
+        upperLayout.addWidget(QLabel('enter B Vector:'), 0, 1)
+        upperLayout.addWidget(QLabel('B field Setpoint:'), 0, 2)
+        upperLayout.addWidget(QLabel('Current Setpoint:'), 0, 4)
+
         for i in range(3):
-            entriesLayout.addRow(labels_polar_coords[i], self.input_polar_coords[i])
-            self.input_polar_coords[i].setAlignment(Qt.AlignRight)
+            # entriesLayout.addRow(labels_polar_coords[i], self.input_polar_coords[i])
+            self.input_polar_coords[i].setAlignment(Qt.AlignLeft)
+            # self.input_polar_coords[i].resize(200, 50)
+            self.input_polar_coords[i].setPlaceholderText('0.0')
             self.input_polar_coords[i].returnPressed.connect(self._onSetValues)
 
-        upperLayout.addLayout(entriesLayout)
-        # add a label to display set magnetic field values
-        setBField = QHBoxLayout()
-        self.label_BField = QLabel('')
-        self.label_BField.setText('B field setpoint:\n' +
-                                  f'|\U0001D435| = 0.0 mT\n' +
-                                  f'\U0001D717 = 0.0°\n' +
-                                  f'\U0001D719 = 0.0°\n')
-        setBField.addWidget(self.label_BField)
+            upperLayout.addWidget(labels_polar_coords[i], i + 1, 0)
+            upperLayout.addWidget(self.input_polar_coords[i], i + 1, 1)
+            upperLayout.addWidget(self.setpoints_BField[i], i + 1, 2)
+            upperLayout.addWidget(labels_currents[i], i + 1, 3)
+            upperLayout.addWidget(self.setpoints_currents[i], i + 1, 4)
+        # upperLayout.addLayout(entriesLayout)
 
-        upperLayout.addLayout(setBField)
-        # add a label to display measured current values
-        currentsLayout = QHBoxLayout()
-        self.label_currents = QLabel('')
-        self.label_currents.setText('actual currents:\n' +
-                                    f'\U0001D43C\u2081 = 0.000A\n' +
-                                    f'\U0001D43C\u2082 = 0.000A\n' +
-                                    f'\U0001D43C\u2083 = 0.000A\n')
-        currentsLayout.addWidget(self.label_currents)
-
-        upperLayout.addLayout(currentsLayout)
         generalLayout.addLayout(upperLayout)
+
+        coordinate_system_layout = QPixmap(r'gui_images\VM_Coordinate_system.png')
 
         # add button for setting field values
         self.btn_set_values = QPushButton('set field values')
@@ -243,10 +249,9 @@ class VectorMagnetDialog(QWidget):
             self.msg_values.setText('')
             self.btn_set_field.setEnabled(True)
 
-            self.label_BField.setText('B field setpoint:\n' +
-                                      f'|\U0001D435| = {self.field_coords[0]:.3f} mT\n' +
-                                      f'\U0001D717 = {self.field_coords[1]}°\n' +
-                                      f'\U0001D719 = {self.field_coords[2]}°\n')
+            self.setpoints_BField[0].setText(f'{self.field_coords[0]:.2f} mT')
+            self.setpoints_BField[1].setText(f'{self.field_coords[1]:.3f} °')
+            self.setpoints_BField[2].setText(f'{self.field_coords[2]:.3f} °')
 
             if self.magnet_is_on:
                 self._SwitchOnField()
