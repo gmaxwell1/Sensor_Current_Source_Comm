@@ -17,8 +17,8 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import (QObject, QRunnable, Qt, QThreadPool, pyqtSignal,
                           pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QFormLayout, QGridLayout,
-                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                             QPushButton, QToolBar, QVBoxLayout, QWidget)
+                             QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+                             QPushButton, QVBoxLayout, QWidget)
 
 from core.current_control import PowerSupplyCommands
 from core.field_current_tr import (computeCoilCurrents,
@@ -66,7 +66,6 @@ class Worker(QRunnable):
     :type callback: function
     :param args: Arguments to pass to the callback function
     :param kwargs: Keywords to pass to the callback function
-
     '''
 
     def __init__(self, fn, *args, **kwargs):
@@ -98,15 +97,29 @@ class Worker(QRunnable):
             self.signals.finished.emit()  # Done
 
 
+class CoordinatesPopUp(QWidget):
+
+    def __init__(self, image_path, *args):
+        QWidget.__init__(self, *args)
+        self.title = "Image Viewer"
+        self.setWindowTitle(self.title)
+
+        label = QLabel(self)
+        pixmap = QtGui.QPixmap(image_path)
+        pixmap_scaled = pixmap.scaled(512, 512, Qt.KeepAspectRatio)
+        label.setPixmap(pixmap_scaled)
+        self.resize(pixmap_scaled.width(), pixmap_scaled.height())
+
+
 class VectorMagnetDialog(QWidget):
 
     """
     Test window of GUI part for controlling vector magnet.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *args):
         """Initialize widget. It is recommended to use it inside a with statement."""
-        super().__init__(parent)
+        QWidget.__init__(self, parent, *args)
 
         # will probably be changed/removed
         self.gui_image_folder = r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\2_Current_Source_Contol\Sensor_Current_Source_Comm\gui_images'
@@ -119,7 +132,7 @@ class VectorMagnetDialog(QWidget):
         self.magnet_is_on = False
 
         # connect to power supplies
-        self.commander = PowerSupplyCommands()
+        # self.commander = PowerSupplyCommands()
         # logger
         # print('open connection to power supplies')
         self.threads = QThreadPool()
@@ -131,7 +144,7 @@ class VectorMagnetDialog(QWidget):
 
     def __exit__(self, exc_type, exc_value, traceback):
         """ Ensure that connection to channels is closed. """
-        self.commander.closeConnection()
+        # self.commander.closeConnection()
         print('connection closed.')
 
     def _create_widgets(self):
@@ -183,7 +196,10 @@ class VectorMagnetDialog(QWidget):
 
         generalLayout.addLayout(upperLayout)
 
-        coordinate_system_layout = QPixmap(r'gui_images\VM_Coordinate_system.png')
+        self.coordinate_system_btn = QPushButton('show reference coordinates')
+        self.coordinate_system_btn.clicked.connect(self.openCoordPopup)
+        self.coordinate_system_btn.resize(30, 10)
+        generalLayout.addWidget(self.coordinate_system_btn)
 
         # add button for setting field values
         self.btn_set_values = QPushButton('set field values')
@@ -193,13 +209,13 @@ class VectorMagnetDialog(QWidget):
         # add label for error messages related to setting field values
         self.msg_values = QLabel('')
         generalLayout.addWidget(self.msg_values)
-        try:
-            self.commander.openConnection()
-            self.msg_values.setText("Connected to power supplies.")
-        except BaseException:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.updateErrorMessage((exctype, value, traceback.format_exc()))
+        # try:
+        #     self.commander.openConnection()
+        self.msg_values.setText("Connected to power supplies.")
+        # except BaseException:
+        #     traceback.print_exc()
+        #     exctype, value = sys.exc_info()[:2]
+        #     self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
         # add button for switching on/off field, disable at first
         fieldLayout = QHBoxLayout()
@@ -223,6 +239,11 @@ class VectorMagnetDialog(QWidget):
         generalLayout.addWidget(self.check_demag)
 
         self.setLayout(generalLayout)
+
+    def openCoordPopup(self):
+        path = os.path.join(self.gui_image_folder, 'VM_Coordinate_system.png')
+        self.w = CoordinatesPopUp(path)
+        self.w.show()
 
     def updateErrorMessage(self, args):
         """
@@ -367,79 +388,80 @@ class VectorMagnetDialog(QWidget):
             self._DisplayCurrents()
             sleep(0.8)
 
-    def contStatusFetch(self):
+    # def contStatusFetch(self):
 
-        important_msgs = ['QER0', 'QER1', 'QER3', 'QER4', 'QER5', 'ESR3', 'OSR1']
+    #     important_msgs = ['QER0', 'QER1', 'QER3', 'QER4', 'QER5', 'ESR3', 'OSR1']
 
-        while self.magnet_is_on:
-            message_dicts = []
-            for i in range(3):
-                message_dicts.append(self.commander.power_supplies[i].getStatus())
+    #     while self.magnet_is_on:
+    #         message_dicts = []
+    #         for i in range(3):
+    #             message_dicts.append(self.commander.power_supplies[i].getStatus())
 
-                for key in important_msgs:
-                    if key in message_dicts[i].keys():
-                        self.msg_values.setText('%s - on channel %d' % (message_dicts[i][key], i))
+    #             for key in important_msgs:
+    #                 if key in message_dicts[i].keys():
+    #                     self.msg_values.setText('%s - on channel %d' % (message_dicts[i][key], i))
 
-            sleep(5)
+    #         sleep(5)
 
     def _setMagField(self, magnitude: float, theta: float, phi: float, demagnetize: bool):
 
         self.msg_values.setText(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
-        # get magnetic field in Cartesian coordinates
-        B_fieldVector = computeMagneticFieldVector(magnitude, theta, phi)
-        currents = computeCoilCurrents(B_fieldVector)
+        # # get magnetic field in Cartesian coordinates
+        # B_fieldVector = computeMagneticFieldVector(magnitude, theta, phi)
+        # currents = computeCoilCurrents(B_fieldVector)
 
-        try:
-            if demagnetize:
-                self.msg_values.setText('Demagnetizing...')
-                starting_currents = self.commander.setCurrentValues
-                self.commander.demagnetizeCoils(starting_currents)
+        # try:
+        #     if demagnetize:
+        #         self.msg_values.setText('Demagnetizing...')
+        #         starting_currents = self.commander.setCurrentValues
+        #         self.commander.demagnetizeCoils(starting_currents)
 
-            self.commander.setCurrents(des_currents=currents)
-        except BaseException:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.updateErrorMessage((exctype, value, traceback.format_exc()))
+        #     self.commander.setCurrents(des_currents=currents)
+        # except BaseException:
+        #     traceback.print_exc()
+        #     exctype, value = sys.exc_info()[:2]
+        #     self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
-        else:
-            self.msg_values.setText('Currents have been set.')
+        # else:
+        #     self.msg_values.setText('Currents have been set.')
 
     def _disableField(self, demagnetize: bool):
-        print('do stuff to disable field')
-        # use self.msg_magnet.setText() to output any error messages
-        if demagnetize:
-            self.msg_values.setText('Demagnetizing...')
-            starting_currents = self.commander.setCurrentValues
-            try:
-                self.commander.demagnetizeCoils(starting_currents)
-            except BaseException:
-                traceback.print_exc()
-                exctype, value = sys.exc_info()[:2]
-                self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
-        else:
-            self.commander.disableCurrents()
-            self.msg_values.setText('Power supplies ready.')
+        self.msg_values.setText('do stuff to disable field')
+        # # use self.msg_magnet.setText() to output any error messages
+        # if demagnetize:
+        #     self.msg_values.setText('Demagnetizing...')
+        #     starting_currents = self.commander.setCurrentValues
+        #     try:
+        #         self.commander.demagnetizeCoils(starting_currents)
+        #     except BaseException:
+        #         traceback.print_exc()
+        #         exctype, value = sys.exc_info()[:2]
+        #         self.updateErrorMessage((exctype, value, traceback.format_exc()))
+
+        # else:
+        #     self.commander.disableCurrents()
+        #     self.msg_values.setText('Power supplies ready.')
 
     def _getCurrents(self):
-        # print('read current values')
-        currents = [0, 0, 0]
-        try:
-            for i, psu in enumerate(self.commander.power_supplies):
-                currents[i] = psu.getMeasurement(meas_quantity='current')
-        except BaseException:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.updateErrorMessage((exctype, value, traceback.format_exc()))
+        self.msg_values.setText('read current values')
+        # currents = [0, 0, 0]
+        # try:
+        #     for i, psu in enumerate(self.commander.power_supplies):
+        #         currents[i] = psu.getMeasurement(meas_quantity='current')
+        # except BaseException:
+        #     traceback.print_exc()
+        #     exctype, value = sys.exc_info()[:2]
+        #     self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
-        return currents
+        return [0, 0, 0]
 
 
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)
 
-    with VectorMagnetDialog(parent=None) as dialog:
+    with VectorMagnetDialog() as dialog:
         dialog.show()
 
         sys.exit(app.exec_())
