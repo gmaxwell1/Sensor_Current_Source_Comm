@@ -104,9 +104,14 @@ class CoordinatesPopUp(QWidget):
         self.title = "Image Viewer"
         self.setWindowTitle(self.title)
 
+        self.gui_image_folder = r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\2_Current_Source_Contol\Sensor_Current_Source_Comm\gui_images'
+        self.icon_file = 'window_icon.png'
+
+        self.setWindowIcon(QtGui.QIcon(os.path.join(self.gui_image_folder, self.icon_file)))
+
         label = QLabel(self)
         pixmap = QtGui.QPixmap(image_path)
-        pixmap_scaled = pixmap.scaled(512, 512, Qt.KeepAspectRatio)
+        pixmap_scaled = pixmap.scaled(750, 750, Qt.KeepAspectRatio)
         label.setPixmap(pixmap_scaled)
         self.resize(pixmap_scaled.width(), pixmap_scaled.height())
 
@@ -150,7 +155,7 @@ class VectorMagnetDialog(QWidget):
     def _create_widgets(self):
         """ Create all widgets needed for the graphical interface. """
         # set layout of window
-        generalLayout = QVBoxLayout()
+        generalLayout = QVBoxLayout(self)
 
         # add input fields to enter spherical coordinates
         upperLayout = QGridLayout()
@@ -196,19 +201,18 @@ class VectorMagnetDialog(QWidget):
 
         generalLayout.addLayout(upperLayout)
 
-        self.coordinate_system_btn = QPushButton('show reference coordinates')
+        lowerLayout = QHBoxLayout()
+
+        misc = QVBoxLayout()
+
+        self.coordinate_system_btn = QPushButton('show reference coordinates', self)
         self.coordinate_system_btn.clicked.connect(self.openCoordPopup)
         self.coordinate_system_btn.resize(30, 10)
-        generalLayout.addWidget(self.coordinate_system_btn)
-
-        # add button for setting field values
-        self.btn_set_values = QPushButton('set field values')
-        self.btn_set_values.clicked.connect(self._onSetValues)
-        generalLayout.addWidget(self.btn_set_values)
+        misc.addWidget(self.coordinate_system_btn)
 
         # add label for error messages related to setting field values
         self.msg_values = QLabel('')
-        generalLayout.addWidget(self.msg_values)
+        misc.addWidget(self.msg_values)
         # try:
         #     self.commander.openConnection()
         self.msg_values.setText("Connected to power supplies.")
@@ -218,25 +222,35 @@ class VectorMagnetDialog(QWidget):
         #     self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
         # add button for switching on/off field, disable at first
-        fieldLayout = QHBoxLayout()
-        self.btn_set_field = QPushButton('switch on field')
+        fieldCtrl = QVBoxLayout()
+
+        # add button for setting field values
+        self.btn_set_values = QPushButton('set field values', self)
+        self.btn_set_values.clicked.connect(self._onSetValues)
+        fieldCtrl.addWidget(self.btn_set_values)
+
+        self.btn_set_field = QPushButton('switch on field', self)
         self.btn_set_field.clicked.connect(self._SwitchOnField)
         self.btn_set_field.setDisabled(True)
-        fieldLayout.addWidget(self.btn_set_field)
+        fieldCtrl.addWidget(self.btn_set_field)
 
-        # add a disabled button that shows whether magnet is on or off, could also
+        # add a display that shows whether magnet is on or off, could also
         # be replaced by something else
-        self.lab_field_status = QLabel('off')
+        self.lab_field_status = QLabel('off', self)
         self.lab_field_status.setAlignment(Qt.AlignCenter)
-        self.lab_field_status.setStyleSheet("border: 1px solid black;")
-        self.lab_field_status.setFixedWidth(50)
-        fieldLayout.addWidget(self.lab_field_status)
-        generalLayout.addLayout(fieldLayout)
+        # self.lab_field_status.resize(50, 50)
+        self.lab_field_status.setStyleSheet(
+            "border: 1px solid black; inset grey; border-radius: 25px;")
+        fieldCtrl.addWidget(self.lab_field_status)
 
         # add checkbox to enable/disable demagnetization
         self.check_demag = QCheckBox('demagnetize')
+        fieldCtrl.addWidget(self.check_demag)
 
-        generalLayout.addWidget(self.check_demag)
+        lowerLayout.addLayout(fieldCtrl)
+        lowerLayout.addLayout(misc)
+
+        generalLayout.addLayout(lowerLayout)
 
         self.setLayout(generalLayout)
 
@@ -372,16 +386,15 @@ class VectorMagnetDialog(QWidget):
         currents = self._getCurrents()
 
         if self.magnet_is_on:
-            text = 'actual currents:\n' + \
-                f'\U0001D43C\u2081 = {currents[0]:.3f}A\n' + \
-                f'\U0001D43C\u2082 = {currents[1]:.3f}A\n' + \
-                f'\U0001D43C\u2083 = {currents[2]:.3f}A\n'
+            text = [f'{currents[0]:.3f}A',
+                    f'{currents[1]:.3f}A',
+                    f'{currents[2]:.3f}A']
         else:
-            text = 'actual currents:\n' + \
-                f'\U0001D43C\u2081 = 0.000A\n' + \
-                f'\U0001D43C\u2082 = 0.000A\n' + \
-                f'\U0001D43C\u2083 = 0.000A\n'
-        self.label_currents.setText(text)
+            text = ['0.000A',
+                    '0.000A',
+                    '0.000A']
+        for i in range(len(text)):
+            self.setpoints_currents[i].setText(text[i])
 
     def contCurrentFetch(self):
         while self.magnet_is_on:
