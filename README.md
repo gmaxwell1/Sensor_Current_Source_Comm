@@ -24,5 +24,3 @@ After cloning this repository follow these steps (this is for Windows, but it sh
    Also ensure that the current sources are connected to the same local network as the computer you are working on (e.g. with a switch) -> the computer should have an
    extra Ethernet port configured to have the IP address `192.168.237.1` or similar. The gateway address also needs to be set.
 
-## Notes:
-If you are using an IDE, make sure to choose the `python.exe` file in your virtual environment as an interpreter!
