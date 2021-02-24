@@ -3,7 +3,7 @@ For controlling a Vector Magnet with IT6432 current sources
 
 ## Instructions on how to use this package:
 After cloning this repository follow these steps (this is for Windows, but it shouldn't differ too much on Linux/Unix).
-* **Create a virtual environment:**
+* **Create a virtual environment (optional):**
 1. open your current working directory in the command line/terminal (I would recommend using _this_ folder, i.e. `.\Sensor_Current_Source_Comm\`)
 2. type `virtualenv --version` and ensure that this package is installed
   (2a. if not, install it by typing `pip install virtualenv`)

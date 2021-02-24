@@ -221,7 +221,6 @@ class VectorMagnetDialog(QWidget):
         #     exctype, value = sys.exc_info()[:2]
         #     self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
-        # add button for switching on/off field, disable at first
         fieldCtrl = QVBoxLayout()
 
         # add button for setting field values
@@ -229,13 +228,14 @@ class VectorMagnetDialog(QWidget):
         self.btn_set_values.clicked.connect(self._onSetValues)
         fieldCtrl.addWidget(self.btn_set_values)
 
+        # add button for switching on/off field, disable at first
         self.btn_set_field = QPushButton('switch on field', self)
         self.btn_set_field.clicked.connect(self._SwitchOnField)
         self.btn_set_field.setDisabled(True)
         fieldCtrl.addWidget(self.btn_set_field)
 
-        # add a display that shows whether magnet is on or off, could also
-        # be replaced by something else
+        # add a display that shows whether magnet is on or off, should be
+        # a circle later
         self.lab_field_status = QLabel('off', self)
         self.lab_field_status.setAlignment(Qt.AlignCenter)
         # self.lab_field_status.resize(50, 50)
