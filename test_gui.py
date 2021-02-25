@@ -16,9 +16,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PyQt5 import QtGui
 from PyQt5.QtCore import (QObject, QRunnable, Qt, QThreadPool, pyqtSignal,
                           pyqtSlot)
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QFormLayout, QGridLayout,
-                             QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-                             QPushButton, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QFormLayout, QFrame,
+                             QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+                             QMainWindow, QPushButton, QVBoxLayout, QWidget)
 
 from core.current_control import PowerSupplyCommands
 from core.field_current_tr import (computeCoilCurrents,
@@ -119,7 +119,10 @@ class CoordinatesPopUp(QWidget):
 class VectorMagnetDialog(QWidget):
 
     """
-    Test window of GUI part for controlling vector magnet.
+    Window of GUI for controlling the vector magnet.
+
+    Args:
+        parent (QWidget or similar): parent window
     """
 
     def __init__(self, parent=None, *args):
@@ -127,7 +130,7 @@ class VectorMagnetDialog(QWidget):
         QWidget.__init__(self, parent, *args)
 
         # will probably be changed/removed
-        self.gui_image_folder = r'C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\1_Version_2_Vector_Magnet\2_Current_Source_Contol\Sensor_Current_Source_Comm\gui_images'
+        self.gui_image_folder = r'gui_images'
         self.icon_file = 'window_icon.png'
 
         self.setWindowTitle('Vector Magnet Control')
@@ -200,11 +203,10 @@ class VectorMagnetDialog(QWidget):
         # upperLayout.addLayout(entriesLayout)
 
         generalLayout.addLayout(upperLayout)
-
+        # layout for lower half of GUI
         lowerLayout = QHBoxLayout()
 
         misc = QVBoxLayout()
-
         self.coordinate_system_btn = QPushButton('show reference coordinates', self)
         self.coordinate_system_btn.clicked.connect(self.openCoordPopup)
         self.coordinate_system_btn.resize(30, 10)
@@ -222,7 +224,6 @@ class VectorMagnetDialog(QWidget):
         #     self.updateErrorMessage((exctype, value, traceback.format_exc()))
 
         fieldCtrl = QVBoxLayout()
-
         # add button for setting field values
         self.btn_set_values = QPushButton('set field values', self)
         self.btn_set_values.clicked.connect(self._onSetValues)
@@ -238,9 +239,11 @@ class VectorMagnetDialog(QWidget):
         # a circle later
         self.lab_field_status = QLabel('off', self)
         self.lab_field_status.setAlignment(Qt.AlignCenter)
-        # self.lab_field_status.resize(50, 50)
-        self.lab_field_status.setStyleSheet(
-            "border: 1px solid black; inset grey; border-radius: 25px;")
+        self.lab_field_status.setStyleSheet("inset grey; min-height: 30px;")
+        self.lab_field_status.setFrameShape(QFrame.Panel)
+        self.lab_field_status.setFrameShadow(QFrame.Sunken)
+        self.lab_field_status.setLineWidth(3)
+
         fieldCtrl.addWidget(self.lab_field_status)
 
         # add checkbox to enable/disable demagnetization
@@ -255,6 +258,8 @@ class VectorMagnetDialog(QWidget):
         self.setLayout(generalLayout)
 
     def openCoordPopup(self):
+        """open pop up window for coordinate screen"""
+
         path = os.path.join(self.gui_image_folder, 'VM_Coordinate_system.png')
         self.w = CoordinatesPopUp(path)
         self.w.show()
@@ -274,7 +279,8 @@ class VectorMagnetDialog(QWidget):
                           f"{args[0]}, {args[1]}\n{args[2]}\n")
 
     def _onSetValues(self):
-        """Read input coordinates, check validity and switch on magnet."""
+        """Read input coordinates, check their validity and prepare to be set on the vector magnet."""
+
         # get input polar coordinates
         coords = [input_field.text() for input_field in self.input_polar_coords]
 
@@ -284,9 +290,9 @@ class VectorMagnetDialog(QWidget):
             self.msg_values.setText('')
             self.btn_set_field.setEnabled(True)
 
-            self.setpoints_BField[0].setText(f'{self.field_coords[0]:.2f} mT')
-            self.setpoints_BField[1].setText(f'{self.field_coords[1]:.3f} °')
-            self.setpoints_BField[2].setText(f'{self.field_coords[2]:.3f} °')
+            for j in range(len(self.field_coords)):
+                unit = 'mT' if j == 0 else '°'
+                self.setpoints_BField[j].setText(f'{self.field_coords[j]:.2f} {unit}')
 
             if self.magnet_is_on:
                 self._SwitchOnField()
@@ -308,7 +314,7 @@ class VectorMagnetDialog(QWidget):
                            0 <= theta <= 180; 0 <= phi < 360
 
         Returns:
-            bool: True if all values are valid and False else
+            bool: True if all values are valid and False otherwise
         """
         # test whether all values are float
         try:
@@ -328,11 +334,14 @@ class VectorMagnetDialog(QWidget):
 
     def _SwitchOnField(self):
         """Switch on vector magnet and set field values that are currently set as class variables."""
+
         # update variables
         self.magnet_is_on = True
 
         # re-define button for switching on/off magnet
-        self.lab_field_status.setStyleSheet('border: 1px solid black; background-color: lime')
+        self.lab_field_status.setStyleSheet("""background-color: lime;
+                                            inset grey;
+                                            min-height: 30px;""")
         self.lab_field_status.setText('on')
         self.btn_set_field.setText('switch off field')
         try:
@@ -356,12 +365,14 @@ class VectorMagnetDialog(QWidget):
         self.threads.start(current_updater)
 
     def _SwitchOffField(self):
-        """ Switch off vector magnet. """
+        """ Switch off vector magnet."""
+
         # update variables
         self.magnet_is_on = False
 
         # re-define button for switching on/off magnet
-        self.lab_field_status.setStyleSheet('border: 1px solid black; background-color: None')
+        self.lab_field_status.setStyleSheet('inset grey; min-height: 30px;')
+        self.lab_field_status.setText('on')
         self.lab_field_status.setText('off')
         self.btn_set_field.setDisabled(True)
         self.btn_set_field.setText('switch on field')
@@ -380,9 +391,8 @@ class VectorMagnetDialog(QWidget):
         self._DisplayCurrents()
 
     def _DisplayCurrents(self):
-        """
-        Method called when checking or unchecking checkbox. Display currents below if checked, hide else.
-        """
+        """This method is for displaying measured current values from the IT6432."""
+
         currents = self._getCurrents()
 
         if self.magnet_is_on:
@@ -397,27 +407,39 @@ class VectorMagnetDialog(QWidget):
             self.setpoints_currents[i].setText(text[i])
 
     def contCurrentFetch(self):
+        """continuously fetch current measurements from IT6432"""
+
         while self.magnet_is_on:
             self._DisplayCurrents()
             sleep(0.8)
 
-    # def contStatusFetch(self):
+    def contStatusFetch(self):
+        """Fetch status bits of IT6432, display any resulting messages."""
 
-    #     important_msgs = ['QER0', 'QER1', 'QER3', 'QER4', 'QER5', 'ESR3', 'OSR1']
+        important_msgs = ['QER0', 'QER1', 'QER3', 'QER4', 'QER5', 'ESR3', 'OSR1']
 
-    #     while self.magnet_is_on:
-    #         message_dicts = []
-    #         for i in range(3):
-    #             message_dicts.append(self.commander.power_supplies[i].getStatus())
+        while self.magnet_is_on:
+            message_dicts = []
+            for i in range(3):
+                message_dicts.append(self.commander.power_supplies[i].getStatus())
 
-    #             for key in important_msgs:
-    #                 if key in message_dicts[i].keys():
-    #                     self.msg_values.setText('%s - on channel %d' % (message_dicts[i][key], i))
+                for key in important_msgs:
+                    if key in message_dicts[i].keys():
+                        self.msg_values.setText('%s - on channel %d' % (message_dicts[i][key], i))
 
-    #         sleep(5)
+            sleep(5)
 
     def _setMagField(self, magnitude: float, theta: float, phi: float, demagnetize: bool):
+        """
+        Compute the current values required to set the desire magnetic field. Then, set them on
+        each IT6432 power supply.
 
+        Args:
+            magnitude (float): B field magnitude
+            theta (float): polar coordinate angle (measured from z axis)
+            phi (float): azimuthal coordinate angle (measured from x axis)
+            demagnetize (bool): if checked, demagnetization will be run before setting the currents
+        """
         self.msg_values.setText(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
         # # get magnetic field in Cartesian coordinates
         # B_fieldVector = computeMagneticFieldVector(magnitude, theta, phi)
@@ -439,7 +461,12 @@ class VectorMagnetDialog(QWidget):
         #     self.msg_values.setText('Currents have been set.')
 
     def _disableField(self, demagnetize: bool):
+        """
+        Set the currents to 0 and disable the IT6432.
 
+        Args:
+            demagnetize (bool): if checked, demagnetization will be run before setting the currents
+        """
         self.msg_values.setText('do stuff to disable field')
         # # use self.msg_magnet.setText() to output any error messages
         # if demagnetize:
@@ -457,6 +484,12 @@ class VectorMagnetDialog(QWidget):
         #     self.msg_values.setText('Power supplies ready.')
 
     def _getCurrents(self):
+        """
+        Get current measurements from each power supply.
+
+        Returns:
+            list: list of current values
+        """
         self.msg_values.setText('read current values')
         # currents = [0, 0, 0]
         # try:

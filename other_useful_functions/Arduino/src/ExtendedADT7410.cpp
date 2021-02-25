@@ -1,9 +1,9 @@
 /* 
  ADT7410 Temperature Sensor Library
  By: Geoffrey Van Landeghem
- Edited: Maxwell Guerne-Kieferndorf
+ Edited by: Maxwell Guerne-Kieferndorf
  Date: February 23nd, 2017
-        December 3rd, 2020
+        December 3rd, 2020 resp.
  License: This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
 
  Part of the code is based on FaBo's ADT7410 library for Arduino.

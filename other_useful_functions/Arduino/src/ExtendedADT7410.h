@@ -1,9 +1,9 @@
 /* 
  ADT7410 Temperature Sensor Library
  By: Geoffrey Van Landeghem
- Edited: Maxwell Guerne-Kieferndorf
+ Edited by: Maxwell Guerne-Kieferndorf
  Date: February 23nd, 2017
-        December 3rd, 2020
+        December 3rd, 2020 resp.
  License: This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
  
  Get temperature from the ADT7410 sensor.
@@ -16,12 +16,11 @@
 #define ADT7410_I2C_ADDRESS_0 0x48 ///< first available I2C address
 //#define ADT7410_I2C_ADDRESS_2 0x49  ///< second available I2C address
 //#define ADT7410_I2C_ADDRESS_3 0x4A  ///< third available I2C address
-//#define ADT7410_I2C_ADDRESS_4 0x4B  ///< fourth available I2C address
 
-#define ADT7410_REG__TEMP_MSB 0x00           ///< Temp. MSB register
-#define ADT7410_REG__TEMP_LSB 0x01           ///< Temp. LSB register
+#define ADT7410_REG__TEMP_MSB 0x00      ///< Temp. MSB register
+#define ADT7410_REG__TEMP_LSB 0x01      ///< Temp. LSB register
 #define ADT7410_REG__ADT7410_STATUS 0x2 ///< Status register
-#define ADT7410_REG__CONFIG 0x03             ///< Configuration register
+#define ADT7410_REG__CONFIG 0x03        ///< Configuration register
 #define ADT7410_REG__ADT7410_ID 0xB     ///< Manufacturer identification
 
 #define ADT7410_MODE_16BIT 0x80
@@ -38,7 +37,7 @@
 class ADT7410
 {
 public:
-    ADT7410(unsigned char);      // should be 0,1 or 2 (initialisation with address)
+    ADT7410(unsigned char); // should be 0,1 or 2 (initialisation with address)
     unsigned char initialise(void);
     unsigned short readTemperature(void);
     void set16bitMode(void);

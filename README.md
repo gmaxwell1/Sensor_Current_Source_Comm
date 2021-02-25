@@ -16,9 +16,10 @@ After cloning this repository follow these steps (this is for Windows, but it sh
 1. If using the Metrolab sensor: Plug in the device and install `libusb-win32` driver using [Zadig](https://zadig.akeo.ie/).
     Otherwise, comment out all dependencies and function calls having to do with the sensor (MetrolabTHM1176Node class). Mainly in core/magnet_control_funcitons.py
     and core/measurement_functions.py
-2. Using Temperature Sensors: make sure the sensor wiring conforms to the following [schematic]().
-   Then run the .ino file in the "other_useful_functions\Arduino\ExtendedADT7410" folder on the arduino board, make sure there are no errors (e.g. using the serial monitor in the arduino IDE)
-   and finally run the script for collecting measurement data.
+2. Using Temperature Sensors: make sure the sensor wiring conforms to the following schematic: "other_useful_functions\Arduino\Extended_ADT7410\circuit_diagram.PNG".
+   (can also be found at "C:\Users\Magnebotix\Desktop\Qzabre_Vector_Magnet\2_Misc_Code\Temperature Sensors\ADT7410_Arduino_Lib\Arduino_temp_meas_circuit\Arduino_temp_meas_cicuit"
+   on Magnebotix PC)
+   Then run the .ino file in the "other_useful_functions\Arduino\ExtendedADT7410" folder on the arduino board, make sure there are no errors (e.g. using the serial monitor in the arduino IDE) and finally run the script for collecting measurement data.
 3. The IT6432 current sources must be configured to have the IP addresses `192.168.237.47, 192.168.237.48, 192.168.237.49` for coils 1, 2 and 3 respectively,
    check this by selecting "Menu" -> "System" -> "Sys Comm" -> "LAN". The IP addresses could alternatively be changed in the `IT6432Connection` class.
    Also ensure that the current sources are connected to the same local network as the computer you are working on (e.g. with a switch) -> the computer should have an

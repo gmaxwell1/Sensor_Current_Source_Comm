@@ -239,11 +239,6 @@ def rotationMatrix(inVector=np.array([1, 0, 0]),
     rot_matrix[2, 2] = math.cos(math.radians(
         alpha)) + ((axis[2] ** 2) * (1 - math.cos(math.radians(alpha))))
 
-    #print('Rotation Matrix:')
-    #print('\t{}\t{}\t{}'.format(rot_matrix[0,0], rot_matrix[1,0], rot_matrix[2,0]))
-    #print('\t{}\t{}\t{}'.format(rot_matrix[0,1], rot_matrix[1,1], rot_matrix[2,1]))
-    #print('\t{}\t{}\t{}'.format(rot_matrix[0,2], rot_matrix[1,2], rot_matrix[2,2]))
-    # self.magnetic_field_unit = rot_matrix.dot(self.magnetic_field_unit)
     return np.around(rot_matrix.dot(inVector), 3)
 
 

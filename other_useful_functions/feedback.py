@@ -85,6 +85,8 @@ def callableFeedback(BField, currentStep=20, maxCorrection=30,
         np.array(goodCurrentValues) (np.ndarray(n,3)): A list of the currents that generate the wanted magnetic field with a small enough error.
         printCurrents (np.array(3)): The (column-wise) average of the currents that generate the wanted magnetic field with a small enough error.
     """
+    # TODO: update parameters to use with new power supplies.
+
     global flags  # for handling input
     # currents to set on ECB
     desCurrents = [0] * 8
