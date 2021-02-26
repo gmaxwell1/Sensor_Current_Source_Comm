@@ -1,5 +1,7 @@
 """
-Simple Hello World example with PyQt5.
+Simple vector magnet control GUI.
+Some sections copied from https://www.learnpyqt.com/tutorials/multithreading-pyqt-applications-qthreadpool/.
+last update: 25.02.21
 """
 
 # imports
@@ -79,9 +81,7 @@ class Worker(QRunnable):
 
     @pyqtSlot()
     def run(self):
-        '''
-        Initialise the runner function with passed args, kwargs.
-        '''
+        '''Initialise the runner function with passed args, kwargs.'''
 
         # Retrieve args/kwargs here; and fire processing using them
         try:
@@ -98,6 +98,12 @@ class Worker(QRunnable):
 
 
 class CoordinatesPopUp(QWidget):
+    """
+    Class which represents the popup window for depicting graphically the coordinate system.
+
+    Args:
+        image_path (str): path pointing to the image used for the coordinates
+    """
 
     def __init__(self, image_path, *args):
         QWidget.__init__(self, *args)
@@ -115,9 +121,10 @@ class CoordinatesPopUp(QWidget):
         label.setPixmap(pixmap_scaled)
         self.resize(pixmap_scaled.width(), pixmap_scaled.height())
 
+# TODO: go through all TODOs in VectorMagnetDialog class once connected to IT6432 power supplies
+
 
 class VectorMagnetDialog(QWidget):
-
     """
     Window of GUI for controlling the vector magnet.
 
@@ -140,7 +147,9 @@ class VectorMagnetDialog(QWidget):
         self.magnet_is_on = False
 
         # connect to power supplies
+        # TODO: uncomment next line
         # self.commander = PowerSupplyCommands()
+
         # logger
         # print('open connection to power supplies')
         self.threads = QThreadPool()
@@ -189,9 +198,7 @@ class VectorMagnetDialog(QWidget):
         upperLayout.addWidget(QLabel('Current Setpoint:'), 0, 4)
 
         for i in range(3):
-            # entriesLayout.addRow(labels_polar_coords[i], self.input_polar_coords[i])
             self.input_polar_coords[i].setAlignment(Qt.AlignLeft)
-            # self.input_polar_coords[i].resize(200, 50)
             self.input_polar_coords[i].setPlaceholderText('0.0')
             self.input_polar_coords[i].returnPressed.connect(self._onSetValues)
 
@@ -200,7 +207,6 @@ class VectorMagnetDialog(QWidget):
             upperLayout.addWidget(self.setpoints_BField[i], i + 1, 2)
             upperLayout.addWidget(labels_currents[i], i + 1, 3)
             upperLayout.addWidget(self.setpoints_currents[i], i + 1, 4)
-        # upperLayout.addLayout(entriesLayout)
 
         generalLayout.addLayout(upperLayout)
         # layout for lower half of GUI
@@ -215,6 +221,8 @@ class VectorMagnetDialog(QWidget):
         # add label for error messages related to setting field values
         self.msg_values = QLabel('')
         misc.addWidget(self.msg_values)
+
+        # TODO: uncomment lines 219-220, 223-226, indent line 222
         # try:
         #     self.commander.openConnection()
         self.msg_values.setText("Connected to power supplies.")
@@ -284,7 +292,7 @@ class VectorMagnetDialog(QWidget):
         # get input polar coordinates
         coords = [input_field.text() for input_field in self.input_polar_coords]
 
-        # check validity, enable field if valid and refuse if not valid
+        # check validity, set field if valid and refuse if not valid
         if self.valid_inputs(coords):
             self.field_coords = [float(coords[0]), float(coords[1]), float(coords[2])]
             self.msg_values.setText('')
@@ -293,7 +301,7 @@ class VectorMagnetDialog(QWidget):
             for j in range(len(self.field_coords)):
                 unit = 'mT' if j == 0 else '°'
                 self.setpoints_BField[j].setText(f'{self.field_coords[j]:.2f} {unit}')
-
+            # if magnet is already on, set new currents on psus immediately
             if self.magnet_is_on:
                 self._SwitchOnField()
 
@@ -441,7 +449,8 @@ class VectorMagnetDialog(QWidget):
             demagnetize (bool): if checked, demagnetization will be run before setting the currents
         """
         self.msg_values.setText(f'setting field ({magnitude} mT, {theta}°, {phi}°)')
-        # # get magnetic field in Cartesian coordinates
+        # TODO: uncomment lines 448-464
+        # get magnetic field in Cartesian coordinates
         # B_fieldVector = computeMagneticFieldVector(magnitude, theta, phi)
         # currents = computeCoilCurrents(B_fieldVector)
 
@@ -467,8 +476,9 @@ class VectorMagnetDialog(QWidget):
         Args:
             demagnetize (bool): if checked, demagnetization will be run before setting the currents
         """
-        self.msg_values.setText('do stuff to disable field')
-        # # use self.msg_magnet.setText() to output any error messages
+        self.msg_values.setText('disabling field')
+        # use self.msg_magnet.setText() to output any error messages
+        # TODO: uncomment lines 476-488
         # if demagnetize:
         #     self.msg_values.setText('Demagnetizing...')
         #     starting_currents = self.commander.setCurrentValues
@@ -491,6 +501,7 @@ class VectorMagnetDialog(QWidget):
             list: list of current values
         """
         self.msg_values.setText('read current values')
+        # TODO: uncomment lines 499-506, change return to return currents variable
         # currents = [0, 0, 0]
         # try:
         #     for i, psu in enumerate(self.commander.power_supplies):
