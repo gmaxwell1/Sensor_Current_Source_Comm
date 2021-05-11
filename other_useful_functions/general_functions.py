@@ -42,9 +42,9 @@ def sensor_to_magnet_coordinates(data):
     """
     Transform from Metrolab sensor coordinates to magnet coordinates, using the following transformation:
 
-    x -> -x
+    x -> -y
     y -> z
-    z -> y
+    z -> -x
 
     Arg: data (ndarray) can be 1d or multidimensional array, where the last dimension must be of length 3 and contain
     x,y,z data.
@@ -53,12 +53,12 @@ def sensor_to_magnet_coordinates(data):
 
     # treat 1d arrays and multi-dimensional arrays differently
     if len(data_magnet_coords.shape) == 1:
-        data_magnet_coords[0] = -data[0]
-        data_magnet_coords[1] = data[2]
+        data_magnet_coords[0] = -data[2]
+        data_magnet_coords[1] = -data[0]
         data_magnet_coords[2] = data[1]
     else:
-        data_magnet_coords[..., 0] = -data[..., 0]
-        data_magnet_coords[..., 1] = data[..., 2]
+        data_magnet_coords[..., 0] = -data[..., 2]
+        data_magnet_coords[..., 1] = -data[..., 0]
         data_magnet_coords[..., 2] = data[..., 1]
 
     return data_magnet_coords
@@ -68,8 +68,8 @@ def magnet_to_sensor_coordinates(data):
     """
     Transform from magnet coordinates to Metrolab sensor coordinates, using the following transformation:
 
-    x -> -x
-    y -> z
+    x -> -z
+    y -> -x
     z -> y
 
     Arg: data (ndarray) can be 1d or multidimensional array, where the last dimension must be of length 3 and contain
@@ -79,13 +79,13 @@ def magnet_to_sensor_coordinates(data):
 
     # treat 1d arrays and multi-dimensional arrays differently
     if len(data.shape) == 1:
-        data_magnet_coords[0] = -data[0]
+        data_magnet_coords[0] = -data[1]
         data_magnet_coords[1] = data[2]
-        data_magnet_coords[2] = data[1]
+        data_magnet_coords[2] = -data[0]
     else:
-        data_magnet_coords[..., 0] = -data[..., 0]
+        data_magnet_coords[..., 0] = -data[..., 1]
         data_magnet_coords[..., 1] = data[..., 2]
-        data_magnet_coords[..., 2] = data[..., 1]
+        data_magnet_coords[..., 2] = -data[..., 0]
 
     return data_magnet_coords
 

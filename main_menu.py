@@ -24,7 +24,7 @@ import other_useful_functions.feedback as fb
 from core.magnet_control_functions import (generateMagneticField, gridSweep,
                                            runCurrents)
 from core.measurement_functions import gotoPosition
-from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
 
 def MainMenu():

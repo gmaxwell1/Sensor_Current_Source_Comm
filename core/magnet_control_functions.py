@@ -29,7 +29,7 @@ finally:
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
     from IT6432.it6432connection import IT6432Connection
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
     from other_useful_functions.arduinoPythonInterface import (ArduinoUno,
                                                                saveTempData)
     from other_useful_functions.general_functions import ensure_dir_exists

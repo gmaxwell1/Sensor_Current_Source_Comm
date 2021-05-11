@@ -15,7 +15,7 @@ except ModuleNotFoundError:
     import os
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
     from core.main_comm_new import *
     from core.measurement_functions import *

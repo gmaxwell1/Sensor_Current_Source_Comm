@@ -25,7 +25,7 @@ finally:
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
     import core.field_current_tr as tr
     from core.current_control import PowerSupplyCommands
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
 
     import other_useful_functions.general_functions as gen
 

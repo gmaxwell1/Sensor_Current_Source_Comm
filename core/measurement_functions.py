@@ -27,8 +27,8 @@ except ModuleNotFoundError:
 finally:
     import sys
     sys.path.insert(1, os.path.join(sys.path[0], '..'))
-    from conexCC.conexcc_class import *
-    from metrolabTHM1176.thm1176 import MetrolabTHM1176Node
+    from conexcc.conexcc_class import *
+    from MetrolabTHM1176.thm1176 import MetrolabTHM1176Node
     from other_useful_functions.general_functions import (
         ensure_dir_exists, sensor_to_magnet_coordinates)
 
